@@ -13,7 +13,10 @@
     "build": "pnpm run clean && tsc -p tsconfig.build.json && node ./scripts/prepare-package.mjs",
     "test": "vitest run",
     "pack:check": "pnpm run build && npm pack ./dist --dry-run",
-    "smoke:consumer": "node ./scripts/consumer-smoke.mjs"
+    "smoke:consumer": "node ./scripts/consumer-smoke.mjs",
+    "demo": "pnpm --filter @everything-tt/tt-players-design-system-demo dev",
+    "demo:build": "pnpm --filter @everything-tt/tt-players-design-system-demo build",
+    "demo:typecheck": "pnpm --filter @everything-tt/tt-players-design-system-demo typecheck"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

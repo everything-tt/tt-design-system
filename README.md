@@ -103,6 +103,17 @@ The consuming Vite app enables Tailwind v4 through `@tailwindcss/vite`. Prefligh
 
 Advanced compositions may import low-level owned primitives from `@everything-tt/tt-players-design-system/primitives`, but reusable branded UI belongs in this package rather than in each app.
 
+## Showcase app
+
+The repository includes a checked-in Vite component lab at [`examples/showcase`](./examples/showcase). It consumes the package through the pnpm workspace, so local edits to `src/` are available without publishing a package version.
+
+```sh
+pnpm install
+pnpm demo
+```
+
+Use `pnpm demo:typecheck` and `pnpm demo:build` for focused validation. The lab covers foundations, theme switching, controls, list composition, feedback states, and the Radix-backed bottom sheet.
+
 ## Package distribution
 
 This is the standalone source repository for the shared TT design system. The package is published to the `everything-tt` GitHub Packages organization registry as `@everything-tt/tt-players-design-system`.

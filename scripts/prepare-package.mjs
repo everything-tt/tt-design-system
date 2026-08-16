@@ -6,6 +6,10 @@ const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const distRoot = join(packageRoot, 'dist');
 const sourcePackage = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
 
+if (sourcePackage.name !== '@everything-tt/tt-players-design-system') {
+  throw new Error(`Unexpected package name: ${sourcePackage.name}`);
+}
+
 function copyCssAssets(sourceDir, targetDir) {
   mkdirSync(targetDir, { recursive: true });
   for (const entry of readdirSync(sourceDir, { withFileTypes: true })) {
@@ -45,7 +49,7 @@ cpSync(join(packageRoot, 'README.md'), join(distRoot, 'README.md'));
 verifyCompiledCssImports(distRoot);
 
 const publishedPackage = {
-  name: '@wudong/tt-players-design-system',
+  name: sourcePackage.name,
   version: sourcePackage.version,
   description: 'Shared TT Players React design system for mobile-first PWAs.',
   type: 'module',
@@ -79,10 +83,9 @@ const publishedPackage = {
   },
   repository: {
     type: 'git',
-    url: 'git+https://github.com/wudong/tt-players.git',
-    directory: 'packages/design-system',
+    url: 'git+https://github.com/everything-tt/tt-design-system.git',
   },
-  homepage: 'https://github.com/wudong/tt-players/tree/main/packages/design-system',
+  homepage: 'https://github.com/everything-tt/tt-design-system',
   publishConfig: {
     registry: 'https://npm.pkg.github.com',
   },

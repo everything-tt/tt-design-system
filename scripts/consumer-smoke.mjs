@@ -26,7 +26,7 @@ try {
       typecheck: 'tsc --noEmit',
     },
     dependencies: {
-      '@wudong/tt-players-design-system': `file:${tarballPath}`,
+      '@everything-tt/tt-players-design-system': `file:${tarballPath}`,
       react: '^18.3.1',
       'react-dom': '^18.3.1',
     },
@@ -74,8 +74,8 @@ import {
   MetricGrid,
   OutcomeBadge,
   Pill,
-} from '@wudong/tt-players-design-system';
-import '@wudong/tt-players-design-system/styles.css';
+} from '@everything-tt/tt-players-design-system';
+import '@everything-tt/tt-players-design-system/styles.css';
 
 function App() {
   return (

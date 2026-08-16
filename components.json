@@ -11,10 +11,10 @@
   },
   "iconLibrary": "lucide",
   "aliases": {
-    "components": "@tt-players/design-system/components",
-    "utils": "@tt-players/design-system/lib/utils",
-    "ui": "@tt-players/design-system/components/ui",
-    "lib": "@tt-players/design-system/lib",
-    "hooks": "@tt-players/design-system/hooks"
+    "components": "@everything-tt/tt-players-design-system/components",
+    "utils": "@everything-tt/tt-players-design-system/lib/utils",
+    "ui": "@everything-tt/tt-players-design-system/components/ui",
+    "lib": "@everything-tt/tt-players-design-system/lib",
+    "hooks": "@everything-tt/tt-players-design-system/hooks"
   }
 }

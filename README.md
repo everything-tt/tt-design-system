@@ -10,7 +10,7 @@ Reusable React primitives for TT-branded mobile-first PWAs. The package uses sha
 - `components/States.tsx` — `HeroCard`, `SectionHeader`, `EmptyState`, `ErrorState`.
 - `components/BottomSheet.tsx` and `components/AppDrawer.tsx` — TT mobile overlays composed from the shadcn/Radix Dialog foundation. Radix owns focus, inertness, Escape handling and restoration; TT owns geometry and safe areas.
 - `components/ui/` — owned shadcn-style low-level source (`Button`, `Card`, `Input`, `Switch`, `ToggleGroup`, `Dialog`). Product screens should normally use the TT wrappers above.
-- `styles/index.css` — the single portable stylesheet entry point, exported as `@tt-players/design-system/styles.css`.
+- `styles/index.css` — the single portable stylesheet entry point, exported as `@everything-tt/tt-players-design-system/styles.css`.
 - `components/OutcomeBadge.tsx`, `Pill.tsx`, `SegmentedToggle.tsx`, `ExternalLinkButton.tsx` — small semantic controls.
 - `theme/ThemeContext.tsx` — theme state only. It reads/writes the configured theme storage key and body classes, but owns no app-specific settings.
 - `lib/utils.ts` — canonical shadcn-compatible `cn` helper (`clsx` + `tailwind-merge`). `utils/cx.ts` remains a compatibility alias.
@@ -20,7 +20,7 @@ Reusable React primitives for TT-branded mobile-first PWAs. The package uses sha
 Use `MatchRecordRow` for a compact completed player match or team fixture. Do not use it for standings, rankings, upcoming fixtures, form strips, fixture hero scores, or the detailed two-sided rubber scorecard.
 
 ```tsx
-import { MatchRecordRow } from '@tt-players/design-system';
+import { MatchRecordRow } from '@everything-tt/tt-players-design-system';
 
 <MatchRecordRow
   score={{
@@ -86,52 +86,52 @@ import {
   ListItem,
   MatchRecordRow,
   OutcomeBadge,
-} from '@tt-players/design-system';
+} from '@everything-tt/tt-players-design-system';
 ```
 
-Mobile code currently re-exports this package via `apps/mobile/src/ui/appkit/index.ts`; direct package imports are preferred for new shared code.
+Consumers should import the shared primitives directly from `@everything-tt/tt-players-design-system`.
 
 ## App setup
 
 Import the package stylesheet once at the application entry point:
 
 ```tsx
-import '@tt-players/design-system/styles.css';
+import '@everything-tt/tt-players-design-system/styles.css';
 ```
 
 The consuming Vite app enables Tailwind v4 through `@tailwindcss/vite`. Preflight is intentionally not loaded because TT apps own their platform reset and legacy migration boundary.
 
-Advanced compositions may import low-level owned primitives from `@tt-players/design-system/primitives`, but reusable branded UI belongs in this package rather than in each app.
+Advanced compositions may import low-level owned primitives from `@everything-tt/tt-players-design-system/primitives`, but reusable branded UI belongs in this package rather than in each app.
 
 ## Package distribution
 
-Inside this monorepo the source package remains `@tt-players/design-system`, and applications should keep a workspace dependency:
+This is the standalone source repository for the shared TT design system. The package is published to the `everything-tt` GitHub Packages organization registry as `@everything-tt/tt-players-design-system`.
 
 ```json
 {
   "dependencies": {
-    "@tt-players/design-system": "workspace:*"
+    "@everything-tt/tt-players-design-system": "^0.1.6"
   }
 }
 ```
 
-The compiled package is published to GitHub Packages as `@wudong/tt-players-design-system`. External TT applications configure the GitHub npm registry and install the released package:
+Configure the `@everything-tt` scope to use GitHub Packages:
 
 ```ini
-@wudong:registry=https://npm.pkg.github.com
+@everything-tt:registry=https://npm.pkg.github.com
 ```
 
 ```sh
-pnpm add @wudong/tt-players-design-system
+pnpm add @everything-tt/tt-players-design-system
 ```
 
 External imports use the published package name:
 
 ```tsx
-import { AppButton } from '@wudong/tt-players-design-system';
-import '@wudong/tt-players-design-system/styles.css';
+import { AppButton } from '@everything-tt/tt-players-design-system';
+import '@everything-tt/tt-players-design-system/styles.css';
 ```
 
-`Design System Package` runs only when `packages/design-system/**` changes. Pull requests build and inspect the package tarball; pushes to `main` publish the version from `packages/design-system/package.json`. Published versions are immutable, so every releasable package change must bump that version.
+The package workflow runs tests, builds the declaration and JavaScript artifacts, inspects the tarball, and verifies a Vite consumer before publishing. Pull requests run the checks only; pushes to `main` publish the version in `package.json`. Published versions are immutable, so every releasable package change must bump the version first.
 
-The architecture and migration audit are documented in `docs/design-system/shadcn-migration.md`. Pull requests that change this package are validated through the design-system guard, mobile build and tests, and the focused responsive screenshot scenario.
+The package uses shadcn source conventions and Radix behaviour beneath a stable TT semantic API. It intentionally has no application routing, feature data fetching, or product-state ownership.

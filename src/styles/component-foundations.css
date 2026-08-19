@@ -378,6 +378,68 @@
   max-width: 320px;
 }
 
+/* ── DateTile & EventListItem ────────────────────────────────────────────── */
+
+.tt-date-tile {
+  align-items: center;
+  background: var(--tt-surface-subtle);
+  border: 1px solid var(--tt-border);
+  border-radius: var(--tt-radius-md);
+  box-sizing: border-box;
+  color: var(--tt-text-primary);
+  display: inline-flex;
+  flex-direction: column;
+  height: 48px;
+  justify-content: center;
+  min-width: 44px;
+  overflow: hidden;
+  padding: 3px 6px;
+  text-align: center;
+  width: 44px;
+}
+
+.tt-date-tile__month {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.tt-date-tile__day {
+  color: var(--tt-text-primary);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.tt-date-tile--processing,
+.tt-date-tile--failed,
+.tt-date-tile--unknown {
+  color: var(--tt-text-muted);
+  font-size: 16px;
+}
+
+.tt-date-tile--failed {
+  background: var(--tt-surface-accent);
+  border-color: var(--accent-border-strong);
+  color: var(--accent);
+}
+
+.tt-event-list-item__subtitle {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tt-space-2);
+}
+
+.tt-event-list-item__details {
+  color: var(--tt-text-muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
 @media (hover: hover) {
   .tt-list-item:hover { background: var(--tt-surface-accent); }
 }

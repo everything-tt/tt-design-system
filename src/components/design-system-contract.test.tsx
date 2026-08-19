@@ -1,6 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import {
+  DateTile,
+  EventListItem,
   DesignList,
   EntityHero,
   FilterBar,
@@ -90,5 +92,29 @@ describe('canonical design-system contracts', () => {
 
     expect(markup).toContain('tt-list--compact');
     expect(markup).toContain('tt-list-item');
+  });
+
+  it('renders DateTile and EventListItem compositions', () => {
+    const markup = renderToStaticMarkup(
+      <>
+        <DateTile month="SEP" day={12} />
+        <EventListItem
+          title="Batts U15 2* Open"
+          date="2026-09-12"
+          category="Junior 2*"
+          location="Harlow"
+          statusLabel="Published"
+          statusTone="success"
+        />
+      </>,
+    );
+
+    expect(markup).toContain('tt-date-tile');
+    expect(markup).toContain('SEP');
+    expect(markup).toContain('12');
+    expect(markup).toContain('tt-event-list-item');
+    expect(markup).toContain('Batts U15 2* Open');
+    expect(markup).toContain('Junior 2* · Harlow');
+    expect(markup).toContain('Published');
   });
 });

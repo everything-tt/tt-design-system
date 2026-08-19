@@ -119,6 +119,7 @@ export { AppTabBar, type AppTabBarItem, type AppTabBarProps } from './components
 export { AppSearchInput, AppSearchBox, type AppSearchInputProps } from './components/AppSearchInput';
 export { AppSwitch, type AppSwitchProps } from './components/AppSwitch';
 export { AppBackdrop, type AppBackdropProps } from './components/AppBackdrop';
+export { ConfirmationModal, type ConfirmationModalProps } from './components/ConfirmationModal';
 
 // Utilities
 export { cn } from './lib/utils';

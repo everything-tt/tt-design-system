@@ -19,6 +19,8 @@ body.theme-dark {
 
 .tt-page-content {
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: var(--tt-content-max);
   margin-inline: auto;

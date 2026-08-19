@@ -80,8 +80,7 @@ export {
   type PillProps,
 } from './components/List';
 
-export { DateTile, type DateTileProps } from './components/DateTile';
-export { EventListItem, type EventListItemProps } from './components/EventListItem';
+export { Tile, type TileProps } from './components/Tile';
 
 export {
   MatchRecordRow,

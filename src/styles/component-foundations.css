@@ -378,9 +378,9 @@
   max-width: 320px;
 }
 
-/* ── DateTile & EventListItem ────────────────────────────────────────────── */
+/* ── Tile primitive ──────────────────────────────────────────────────────── */
 
-.tt-date-tile {
+.tt-tile {
   align-items: center;
   background: var(--tt-surface-subtle);
   border: 1px solid var(--tt-border);
@@ -398,7 +398,7 @@
   width: 44px;
 }
 
-.tt-date-tile__month {
+.tt-tile__label {
   color: var(--accent);
   font-size: 10px;
   font-weight: 800;
@@ -407,38 +407,27 @@
   text-transform: uppercase;
 }
 
-.tt-date-tile__day {
+.tt-tile__value {
   color: var(--tt-text-primary);
   font-size: 18px;
   font-weight: 800;
   line-height: 1.1;
 }
 
-.tt-date-tile--processing,
-.tt-date-tile--failed,
-.tt-date-tile--unknown {
+.tt-tile__icon {
   color: var(--tt-text-muted);
   font-size: 16px;
 }
 
-.tt-date-tile--failed {
-  background: var(--tt-surface-accent);
-  border-color: var(--accent-border-strong);
-  color: var(--accent);
-}
+.tt-tile--accent { background: var(--tt-surface-accent); border-color: var(--accent-border); }
+.tt-tile--success { background: var(--state-success-soft); border-color: var(--state-success-soft); }
+.tt-tile--danger { background: var(--state-danger-soft); border-color: var(--state-danger-soft); }
+.tt-tile--warning { background: var(--state-warning-soft); border-color: var(--state-warning-soft); }
 
-.tt-event-list-item__subtitle {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--tt-space-2);
-}
-
-.tt-event-list-item__details {
-  color: var(--tt-text-muted);
-  font-size: 13px;
-  font-weight: 400;
-}
+.tt-tile--accent .tt-tile__label { color: var(--accent); }
+.tt-tile--success .tt-tile__label { color: var(--state-success); }
+.tt-tile--danger .tt-tile__label { color: var(--state-danger); }
+.tt-tile--warning .tt-tile__label { color: var(--state-warning); }
 
 @media (hover: hover) {
   .tt-list-item:hover { background: var(--tt-surface-accent); }

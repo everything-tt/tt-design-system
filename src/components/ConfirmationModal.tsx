@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { AlertTriangle, Info, Trash2 } from 'lucide-react';
 import { AppButton } from './AppButton';
 import { Dialog, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogTitle } from './ui/dialog';
 
@@ -31,6 +32,16 @@ export function ConfirmationModal({
 }: ConfirmationModalProps) {
   const effectiveTone = tone ?? (isDestructive ? 'danger' : 'primary');
 
+  const renderIcon = () => {
+    if (effectiveTone === 'danger') {
+      return <Trash2 className="tt-confirmation-dialog__icon" aria-hidden="true" />;
+    }
+    if (effectiveTone === 'warning') {
+      return <AlertTriangle className="tt-confirmation-dialog__icon" aria-hidden="true" />;
+    }
+    return <Info className="tt-confirmation-dialog__icon" aria-hidden="true" />;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !loading) onCancel(); }}>
       <DialogPortal>
@@ -42,26 +53,33 @@ export function ConfirmationModal({
           onEscapeKeyDown={(event) => { if (loading) event.preventDefault(); }}
           onPointerDownOutside={(event) => { if (loading) event.preventDefault(); }}
         >
-          <div className="tt-confirmation-dialog__header">
-            {effectiveTone === 'danger' ? (
-              <span className="tt-confirmation-dialog__icon tt-confirmation-dialog__icon--danger" aria-hidden="true">
-                ⚠️
-              </span>
-            ) : null}
+          <div className="tt-confirmation-dialog__body">
+            <div className={`tt-confirmation-dialog__badge tt-confirmation-dialog__badge--${effectiveTone}`}>
+              {renderIcon()}
+            </div>
             <DialogTitle className="tt-confirmation-dialog__title">{title}</DialogTitle>
+            <DialogDescription asChild>
+              <div className="tt-confirmation-dialog__message">{message}</div>
+            </DialogDescription>
+            {children}
           </div>
-          <DialogDescription asChild>
-            <div className="tt-confirmation-dialog__message">{message}</div>
-          </DialogDescription>
-          {children}
+
           <div className="tt-confirmation-dialog__actions">
-            <AppButton type="button" tone="ghost" size="sm" onClick={onCancel} disabled={loading}>
+            <AppButton
+              type="button"
+              tone="outline"
+              size="m"
+              full
+              onClick={onCancel}
+              disabled={loading}
+            >
               {cancelLabel}
             </AppButton>
             <AppButton
               type="button"
               tone={effectiveTone === 'danger' ? 'danger' : 'primary'}
-              size="sm"
+              size="m"
+              full
               loading={loading}
               disabled={loading}
               onClick={onConfirm}

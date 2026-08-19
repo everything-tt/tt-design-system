@@ -52,7 +52,7 @@
   min-height: 52px;
   margin: 0;
   padding: 0 14px;
-  border: 1px solid var(--accent-border-strong, var(--tt-border));
+  border: 1px solid var(--tt-border);
   border-radius: 16px;
   background: var(--surface-strong, var(--tt-surface-raised));
   box-shadow: 0 10px 28px oklch(21% 0.034 158 / 0.08);

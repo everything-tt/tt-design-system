@@ -1,0 +1,17 @@
+[build]
+  command = "pnpm demo:build"
+  publish = "examples/showcase/dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  PNPM_VERSION = "10.24.0"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"

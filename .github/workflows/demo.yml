@@ -80,13 +80,30 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ vars.NETLIFY_SITE_ID }}
     steps:
+      - name: Check preview deployment configuration
+        id: config
+        shell: bash
+        run: |
+          if [[ -n "${NETLIFY_AUTH_TOKEN}" && -n "${NETLIFY_SITE_ID}" ]]; then
+            echo 'configured=true' >> "$GITHUB_OUTPUT"
+            echo 'Netlify preview deployment is configured.'
+          else
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+            echo '::warning::Netlify preview deployment is not configured for tt-design-system. Add NETLIFY_AUTH_TOKEN and NETLIFY_SITE_ID.'
+          fi
       - name: Download demo artifact
+        if: steps.config.outputs.configured == 'true'
         uses: actions/download-artifact@v4
         with:
           name: design-system-demo-${{ github.run_id }}-${{ github.run_attempt }}
           path: examples/showcase/dist
       - name: Deploy PR preview to Netlify
+        if: steps.config.outputs.configured == 'true'
+        id: netlify
         uses: nwtgck/actions-netlify@v3.0
         with:
           publish-dir: ./examples/showcase/dist
@@ -97,8 +114,8 @@ jobs:
           enable-commit-comment: false
           overwrites-pull-request-comment: true
         env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ vars.NETLIFY_SITE_ID }}
+          NETLIFY_AUTH_TOKEN: ${{ env.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ env.NETLIFY_SITE_ID }}
         timeout-minutes: 5
 
   deploy-production:
@@ -110,6 +127,16 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Validate production deployment configuration
+        env:
+          NETLIFY_SITE_ID: ${{ vars.NETLIFY_SITE_ID }}
+          WIF_PROVIDER: ${{ vars.TT_DESIGN_SYSTEM_WIF_PROVIDER }}
+          SERVICE_ACCOUNT: ${{ vars.TT_DESIGN_SYSTEM_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          test -n "$NETLIFY_SITE_ID" || { echo '::error::NETLIFY_SITE_ID is not configured'; exit 1; }
+          test -n "$WIF_PROVIDER" || { echo '::error::TT_DESIGN_SYSTEM_WIF_PROVIDER is not configured'; exit 1; }
+          test -n "$SERVICE_ACCOUNT" || { echo '::error::TT_DESIGN_SYSTEM_SERVICE_ACCOUNT is not configured'; exit 1; }
       - name: Checkout
         uses: actions/checkout@v4
       - name: Download demo artifact

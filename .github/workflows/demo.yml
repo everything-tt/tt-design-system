@@ -25,6 +25,11 @@ permissions:
   contents: read
   packages: read
 
+env:
+  NETLIFY_SITE_ID: 725a8c27-0813-4014-b3f0-ffd725d3847f
+  TT_DESIGN_SYSTEM_WIF_PROVIDER: projects/126174378735/locations/global/workloadIdentityPools/tt-design-system-actions/providers/deploy
+  TT_DESIGN_SYSTEM_SERVICE_ACCOUNT: tt-design-netlify-reader@wudong-agent-master.iam.gserviceaccount.com
+
 concurrency:
   group: design-system-demo-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -82,18 +87,17 @@ jobs:
       pull-requests: write
     env:
       NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-      NETLIFY_SITE_ID: ${{ vars.NETLIFY_SITE_ID }}
     steps:
       - name: Check preview deployment configuration
         id: config
         shell: bash
         run: |
-          if [[ -n "${NETLIFY_AUTH_TOKEN}" && -n "${NETLIFY_SITE_ID}" ]]; then
+          if [[ -n "${NETLIFY_AUTH_TOKEN}" ]]; then
             echo 'configured=true' >> "$GITHUB_OUTPUT"
             echo 'Netlify preview deployment is configured.'
           else
             echo 'configured=false' >> "$GITHUB_OUTPUT"
-            echo '::warning::Netlify preview deployment is not configured for tt-design-system. Add NETLIFY_AUTH_TOKEN and NETLIFY_SITE_ID.'
+            echo '::warning::PR preview deployment is optional and not configured. Production uses GCP Workload Identity Federation.'
           fi
       - name: Download demo artifact
         if: steps.config.outputs.configured == 'true'
@@ -127,16 +131,6 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Validate production deployment configuration
-        env:
-          NETLIFY_SITE_ID: ${{ vars.NETLIFY_SITE_ID }}
-          WIF_PROVIDER: ${{ vars.TT_DESIGN_SYSTEM_WIF_PROVIDER }}
-          SERVICE_ACCOUNT: ${{ vars.TT_DESIGN_SYSTEM_SERVICE_ACCOUNT }}
-        run: |
-          set -euo pipefail
-          test -n "$NETLIFY_SITE_ID" || { echo '::error::NETLIFY_SITE_ID is not configured'; exit 1; }
-          test -n "$WIF_PROVIDER" || { echo '::error::TT_DESIGN_SYSTEM_WIF_PROVIDER is not configured'; exit 1; }
-          test -n "$SERVICE_ACCOUNT" || { echo '::error::TT_DESIGN_SYSTEM_SERVICE_ACCOUNT is not configured'; exit 1; }
       - name: Checkout
         uses: actions/checkout@v4
       - name: Download demo artifact
@@ -148,14 +142,14 @@ jobs:
         uses: google-github-actions/auth@v3
         with:
           project_id: wudong-agent-master
-          workload_identity_provider: ${{ vars.TT_DESIGN_SYSTEM_WIF_PROVIDER }}
-          service_account: ${{ vars.TT_DESIGN_SYSTEM_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ env.TT_DESIGN_SYSTEM_WIF_PROVIDER }}
+          service_account: ${{ env.TT_DESIGN_SYSTEM_SERVICE_ACCOUNT }}
       - name: Load production Netlify credential
         id: gcp-secrets
         uses: google-github-actions/get-secretmanager-secrets@v3
         with:
           secrets: |-
-            netlify_auth_token:wudong-agent-master/tt-design-system-netlify-auth-token
+            netlify_auth_token:wudong-agent-master/tt-players-netlify-auth-token
       - name: Deploy production demo to Netlify
         uses: nwtgck/actions-netlify@v3.0
         with:
@@ -168,7 +162,7 @@ jobs:
           enable-github-deployment: false
         env:
           NETLIFY_AUTH_TOKEN: ${{ steps.gcp-secrets.outputs.netlify_auth_token }}
-          NETLIFY_SITE_ID: ${{ vars.NETLIFY_SITE_ID }}
+          NETLIFY_SITE_ID: ${{ env.NETLIFY_SITE_ID }}
         timeout-minutes: 5
       - name: Clean temporary Google credentials
         if: always()

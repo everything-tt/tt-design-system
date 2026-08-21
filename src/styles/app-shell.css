@@ -555,11 +555,15 @@ body.theme-dark #footer-bar.tt-tab-bar {
   line-height: 1.1;
 }
 
-.tt-drawer__content {
+.tt-drawer__scroll {
   flex: 1;
-  padding: 12px 14px 24px;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.tt-drawer__content {
+  padding: 12px 14px 24px;
 }
 
 .tt-drawer__section-title {

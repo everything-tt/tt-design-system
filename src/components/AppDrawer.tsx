@@ -70,8 +70,10 @@ export function AppDrawer({
                   <h2 id={titleId} className="tt-drawer__title">{title}</h2>
                 </DialogPrimitive.Title>
               </div>
-              {children}
-              {footer}
+              <div className="tt-drawer__scroll">
+                {children}
+                {footer}
+              </div>
             </aside>
           </DialogPrimitive.Content>
         </div>

@@ -12,6 +12,8 @@ import { ScrollAnchor, ScrollArea } from '../components/ScrollArea';
 import { SelectableText } from '../components/SelectableText';
 import { IconButton } from '../components/IconButton';
 import { Pressable } from '../components/Pressable';
+import { List, ListItem } from '../components/List';
+import { AppPageContent, AppShellPage } from '../components/AppShell';
 
 const snapshot = (scrollTop: number, id?: string) => ({
   scrollTop,
@@ -73,18 +75,17 @@ describe('scroll restoration foundations', () => {
     expect(getNavigationRestorationAction('PUSH')).toBe('reset');
     expect(getNavigationRestorationAction('POP')).toBe('restore');
     expect(getNavigationRestorationAction('REPLACE')).toBe('preserve');
-
-    // Routers report both Back and Forward as POP; the same saved history entry
-    // restoration policy therefore applies in both directions.
     expect(getRestorationDecision('POP', true, true)).toBe('restore');
   });
 
-  it('waits for async content readiness before restoring a POP snapshot', () => {
+  it('waits for async content and restores a migrated REPLACE snapshot', () => {
     expect(getRestorationDecision('POP', true, false)).toBe('wait');
     expect(getRestorationDecision('POP', true, true)).toBe('restore');
     expect(getRestorationDecision('POP', false, false)).toBe('reset');
     expect(getRestorationDecision('PUSH', true, false)).toBe('reset');
-    expect(getRestorationDecision('REPLACE', true, false)).toBe('preserve');
+    expect(getRestorationDecision('REPLACE', false, false)).toBe('preserve');
+    expect(getRestorationDecision('REPLACE', true, false)).toBe('wait');
+    expect(getRestorationDecision('REPLACE', true, true)).toBe('restore');
   });
 
   it('bounds restoration state using least-recently-used cleanup', () => {
@@ -92,7 +93,6 @@ describe('scroll restoration foundations', () => {
     controller.save('a', snapshot(10));
     controller.save('b', snapshot(20));
     expect(controller.get('a')?.scrollTop).toBe(10);
-
     controller.save('c', snapshot(30));
     expect(controller.size).toBe(2);
     expect(controller.get('b')).toBeUndefined();
@@ -100,11 +100,10 @@ describe('scroll restoration foundations', () => {
     expect(controller.get('c')?.scrollTop).toBe(30);
   });
 
-  it('moves an entry when history REPLACE changes its key', () => {
+  it('moves a visual snapshot when history REPLACE changes its key', () => {
     const controller = new ScrollRestorationController();
     controller.save('old', snapshot(320, 'player:42'));
     controller.replaceKey('old', 'new');
-
     expect(controller.get('old')).toBeUndefined();
     expect(controller.get('new')).toEqual(snapshot(320, 'player:42'));
   });
@@ -114,40 +113,22 @@ describe('scroll restoration foundations', () => {
       scrollTop: 640,
       top: 100,
       clientHeight: 200,
-      anchors: [
-        fakeAnchor('player:1', 40),
-        fakeAnchor('player:42', 130),
-        fakeAnchor('player:43', 180),
-      ],
+      anchors: [fakeAnchor('player:1', 40), fakeAnchor('player:42', 130), fakeAnchor('player:43', 180)],
     });
-
-    expect(captureScrollSnapshot(target)).toEqual({
-      scrollTop: 640,
-      anchor: { id: 'player:42', offset: 30 },
-    });
+    expect(captureScrollSnapshot(target)).toEqual({ scrollTop: 640, anchor: { id: 'player:42', offset: 30 } });
   });
 
   it('restores by logical anchor before using the raw pixel fallback', () => {
     const anchor = fakeAnchor('player:42', 280);
     const target = fakeTarget({ scrollTop: 600, top: 100, anchors: [anchor] });
-
-    const result = restoreScrollSnapshot(target, {
-      scrollTop: 920,
-      anchor: { id: 'player:42', offset: 40 },
-    });
-
+    const result = restoreScrollSnapshot(target, { scrollTop: 920, anchor: { id: 'player:42', offset: 40 } });
     expect(result).toBe('restored');
     expect(target.scrollTop).toBe(740);
   });
 
   it('falls back to raw pixels when a saved anchor is no longer mounted', () => {
     const target = fakeTarget({ scrollTop: 100, scrollHeight: 1800, clientHeight: 300 });
-
-    const result = restoreScrollSnapshot(target, {
-      scrollTop: 700,
-      anchor: { id: 'removed-player', offset: 20 },
-    });
-
+    const result = restoreScrollSnapshot(target, { scrollTop: 700, anchor: { id: 'removed-player', offset: 20 } });
     expect(result).toBe('restored');
     expect(target.scrollTop).toBe(700);
   });
@@ -155,30 +136,55 @@ describe('scroll restoration foundations', () => {
   it('asks a virtualizer adapter to mount an unavailable anchor before retrying', () => {
     const ensureAnchorVisible = vi.fn();
     const target = fakeTarget();
-
-    const result = restoreScrollSnapshot(
-      target,
-      { scrollTop: 900, anchor: { id: 'player:78', offset: 25 } },
-      { adapter: { ensureAnchorVisible } },
-    );
-
+    const result = restoreScrollSnapshot(target, { scrollTop: 900, anchor: { id: 'player:78', offset: 25 } }, { adapter: { ensureAnchorVisible } });
     expect(result).toBe('waiting');
     expect(ensureAnchorVisible).toHaveBeenCalledWith('player:78');
   });
 
-  it('renders selectable, pressable, anchor, nested-scroll and accessible icon contracts', () => {
+  it('uses pixel fallback immediately when no revealer can handle a missing anchor', () => {
+    const target = fakeTarget({ scrollTop: 0, scrollHeight: 1800, clientHeight: 300 });
+    const result = restoreScrollSnapshot(
+      target,
+      { scrollTop: 700, anchor: { id: 'missing', offset: 10 } },
+      { adapter: { ensureAnchorVisible: () => false } },
+    );
+    expect(result).toBe('restored');
+    expect(target.scrollTop).toBe(700);
+  });
+
+  it('preserves direct ListItem structure when a stable anchor is applied', () => {
+    const markup = renderToStaticMarkup(
+      <List paginate={false}>
+        <ScrollAnchor anchorId="player:42" asChild>
+          <ListItem title="Jane Smith" />
+        </ScrollAnchor>
+        <ListItem scrollAnchorId="player:43" title="Grace Liu" />
+      </List>,
+    );
+    expect(markup).toContain('class="tt-list-item" data-scroll-anchor="player:42"');
+    expect(markup).toContain('data-scroll-anchor="player:43" class="tt-list-item"');
+    expect(markup).not.toContain('data-scroll-anchor="player:42"><div');
+  });
+
+  it('keeps legacy document viewport as the default and exposes contained mode explicitly', () => {
+    const legacy = renderToStaticMarkup(<AppShellPage><AppPageContent>Legacy</AppPageContent></AppShellPage>);
+    const contained = renderToStaticMarkup(<AppShellPage viewport="contained"><AppPageContent restoreScroll>Contained</AppPageContent></AppShellPage>);
+    expect(legacy).toContain('data-app-viewport="document"');
+    expect(legacy).not.toContain('tt-page-content--scrollable');
+    expect(contained).toContain('tt-app-shell--contained');
+    expect(contained).toContain('tt-page-content--scrollable');
+  });
+
+  it('renders selectable, pressable, nested-scroll and accessible icon contracts', () => {
     const markup = renderToStaticMarkup(
       <ScrollRestorationProvider navigationKey="entry-1" navigationType="PUSH">
         <ScrollArea restoreScroll restorationId="results">
-          <ScrollAnchor anchorId="player:42">
-            <SelectableText>Registration 123456</SelectableText>
-          </ScrollAnchor>
+          <ScrollAnchor anchorId="player:42"><SelectableText>Registration 123456</SelectableText></ScrollAnchor>
           <Pressable pressed aria-label="Toggle compact mode">Compact</Pressable>
           <IconButton ariaLabel="Open actions">•••</IconButton>
         </ScrollArea>
       </ScrollRestorationProvider>,
     );
-
     expect(markup).toContain('class="tt-scroll-area"');
     expect(markup).toContain('data-scroll-container="results"');
     expect(markup).toContain('data-scroll-anchor="player:42"');

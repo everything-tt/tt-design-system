@@ -77,7 +77,7 @@ export function MobilePwaDemo({ onOpenShell, onOpenLab }: MobilePwaDemoProps) {
 
   return (
     <ScrollRestorationProvider navigationKey={screen.key} navigationType={navigationType}>
-      <AppShellPage id="mobile-pwa-demo" className="mobile-pwa-demo">
+      <AppShellPage id="mobile-pwa-demo" className="mobile-pwa-demo" viewport="contained">
         <AppHeader
           title={screen.kind === 'list' ? 'Mobile / PWA foundations' : `Demo player ${screen.player}`}
           heading
@@ -129,12 +129,9 @@ export function MobilePwaDemo({ onOpenShell, onOpenLab }: MobilePwaDemoProps) {
               <Surface variant="accent" padding="standard">
                 <p className="mobile-pwa-demo__eyebrow">Issue #6 acceptance demo</p>
                 <h2>Scroll far down, open a player, then Back.</h2>
-                <p>The page stores a stable player anchor plus relative offset, then restores it after Back. Leave async return on to see restoration wait for the list to become renderable.</p>
+                <p>The page stores a stable player anchor plus relative offset. The List keeps its normal progressive 20-row rendering and reveals a missing deep anchor automatically during Back restoration.</p>
                 <div className="mobile-pwa-demo__actions">
-                  <AppButton
-                    tone={asyncReturn ? 'primary' : 'outline'}
-                    onClick={() => setAsyncReturn((value) => !value)}
-                  >
+                  <AppButton tone={asyncReturn ? 'primary' : 'outline'} onClick={() => setAsyncReturn((value) => !value)}>
                     Async return: {asyncReturn ? 'on' : 'off'}
                   </AppButton>
                   <AppButton tone="outline" onClick={() => setSheetOpen(true)}>Overlay demo</AppButton>
@@ -177,21 +174,21 @@ export function MobilePwaDemo({ onOpenShell, onOpenLab }: MobilePwaDemoProps) {
               <Surface variant="raised" padding="none">
                 <div className="mobile-pwa-demo__list-heading">
                   <div>
-                    <h3>Long player list</h3>
-                    <p>{visiblePlayers.length} stable anchors · open any row</p>
+                    <h3>Long progressive player list</h3>
+                    <p>{visiblePlayers.length} stable anchors · 20 rows per progressive page</p>
                   </div>
                   <Pill tone="success">Restorable</Pill>
                 </div>
-                <List divider="hairline" paginate={false}>
+                <List divider="hairline">
                   {visiblePlayers.map((player) => (
-                    <ScrollAnchor key={player.id} anchorId={`player:${player.id}`}>
-                      <ListItem
-                        title={player.name}
-                        subtitle={`${player.club} · anchor player:${player.id}`}
-                        trailing={<Pill tone="neutral">#{player.id}</Pill>}
-                        onClick={() => openPlayer(player.id)}
-                      />
-                    </ScrollAnchor>
+                    <ListItem
+                      key={player.id}
+                      scrollAnchorId={`player:${player.id}`}
+                      title={player.name}
+                      subtitle={`${player.club} · anchor player:${player.id}`}
+                      trailing={<Pill tone="neutral">#{player.id}</Pill>}
+                      onClick={() => openPlayer(player.id)}
+                    />
                   ))}
                 </List>
               </Surface>

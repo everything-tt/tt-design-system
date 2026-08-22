@@ -1,65 +1,118 @@
 # Mobile/PWA interaction and navigation foundations
 
-The design system owns browser/mobile mechanics; the application keeps router and domain state.
+The design system owns reusable browser/mobile mechanics; the application keeps router and domain state.
 
-## App shell and mobile interaction defaults
+## Compatibility-safe viewport migration
 
-Import the package stylesheet once and render application screens inside `AppShellPage`. The shell is a `100dvh` flex viewport, marks ordinary application chrome as non-selectable, contains page overscroll, respects device safe areas, and keeps pinch zoom untouched.
+Import the package stylesheet once and render application screens inside `AppShellPage`.
 
-`AppPageContent` is the canonical page scroll container by default. Use `scrollable={false}` only when a screen deliberately owns another scrolling model.
+Existing consumers keep **document/window scrolling by default**. This is deliberate: TT apps that already use `window.scrollY` / `window.scrollTo()` do not change behaviour merely by upgrading the package.
+
+Opt into the owned mobile viewport when the app is ready to migrate its navigation integration:
 
 ```tsx
-<AppShellPage>
-  <AppHeader title="Leagues" />
+<AppShellPage viewport="contained">
+  <AppHeader title="Players" />
   <AppHeaderSpacer />
-  <AppPageContent>...</AppPageContent>
+  <AppPageContent restoreScroll restorationId="players">
+    ...
+  </AppPageContent>
 </AppShellPage>
 ```
 
-Copyable content opts back into normal browser selection:
+`viewport="contained"` creates the `100dvh` flex viewport. `AppPageContent` becomes the canonical contained scroller when `restoreScroll` is enabled, or when `scrollable` is explicitly true.
+
+Legacy screens that still scroll the document can use `useWindowScrollRestoration` without adopting contained mode.
+
+## Mobile interaction defaults
+
+Inside `AppShellPage`, ordinary application chrome is non-selectable and suppresses touch callout/tap flash. Inputs, textareas, selects and editable content remain selectable. Copyable text opts in explicitly:
 
 ```tsx
 <SelectableText>Registration number: 123456</SelectableText>
 ```
 
-Inputs, textareas and editable content remain selectable automatically.
+The package keeps pinch zoom untouched, uses safe-area helpers, prevents unintended image dragging, contains overscroll in owned scrollers, and preserves visible `:focus-visible` treatment.
+
+`Pressable` is the low-level native-button primitive. `AppButton`, segmented controls, toggle controls and external-link actions meet the 44px touch-target baseline; `IconButton` uses a 48px target and requires an accessible name.
 
 ## Router-agnostic history restoration
 
-Supply only the history-entry identity and navigation operation from the application's router:
+Wrap the application once:
 
 ```tsx
 <ScrollRestorationProvider
   navigationKey={location.key}
-  navigationType={navigationType}
+  navigationType={logicalNavigationType}
 >
   <App />
 </ScrollRestorationProvider>
 ```
 
-The policy is explicit:
+The provider intentionally knows nothing about React Router or another router. `navigationType` is the **logical navigation operation**, not necessarily the raw router event:
 
-- `PUSH` — reset a new screen to the top.
-- `POP` — restore the snapshot for that history entry. This covers Back and Forward.
-- `REPLACE` — preserve the current visual position and discard the superseded restoration entry.
+- `PUSH` — new entry; reset the target to the top.
+- `POP` — Back or Forward; restore that history entry.
+- `REPLACE` — same logical history entry with a new key; migrate the existing visual snapshot to the replacement key and restore/preserve it without creating a duplicate entry.
 
-While mounted, the provider temporarily sets `window.history.scrollRestoration = 'manual'` and restores the previous browser setting on cleanup. This prevents native and SPA restoration from fighting each other.
+React Router's `useNavigationType()` is sufficient when browser history operations map directly to product navigation. Custom per-tab stacks must classify their own semantics. For example, if a product implements visible “Back” with `navigate(previousPath, { replace: true })`, report that operation to this provider as `POP`, because it is logically Back even though React Router reports `REPLACE`.
 
-### Page restoration
+While mounted, the provider temporarily sets `window.history.scrollRestoration = 'manual'` and restores the previous setting on cleanup.
+
+## Stable anchors and relative offsets
+
+Use stable logical identities rather than relying only on raw pixels. `ListItem` has a first-class `scrollAnchorId` so list structure remains unchanged:
 
 ```tsx
-<AppPageContent restoreScroll restorationId="leagues">
-  {leagues.map((league) => (
-    <ScrollAnchor key={league.id} anchorId={`league:${league.id}`}>
-      <LeagueRow league={league} />
-    </ScrollAnchor>
+<List>
+  {players.map((player) => (
+    <ListItem
+      key={player.id}
+      scrollAnchorId={`player:${player.id}`}
+      title={player.name}
+    />
   ))}
+</List>
+```
+
+For arbitrary elements, use `ScrollAnchor`. When the child must remain a direct list/grid child, use `asChild` so no wrapper is added:
+
+```tsx
+<ScrollAnchor anchorId={`fixture:${fixture.id}`} asChild>
+  <FixtureRow fixture={fixture} />
+</ScrollAnchor>
+```
+
+The child must forward normal DOM attributes for `asChild` to work.
+
+Snapshots store raw `scrollTop` plus the first visible stable anchor and its relative viewport offset. Restoration prefers the logical anchor, then falls back to pixels and finally clamps safely if content has become shorter.
+
+## Progressive and virtualized lists
+
+The package's progressively rendered `List` remains paginated by default. During restoration, it registers with the surrounding `AppPageContent` / `ScrollArea` and automatically expands far enough to mount a requested `scrollAnchorId`. The restoration loop then retries the ordinary anchor calculation on the next animation frame.
+
+Server-paged or virtualized lists can provide their own adapter:
+
+```tsx
+<AppPageContent
+  restoreScroll
+  restorationId="ranking"
+  restorationAdapter={{
+    ensureAnchorVisible: (anchorId) => {
+      const index = indexByPlayerId.get(anchorId);
+      if (index == null) return false;
+      virtualizer.scrollToIndex(index);
+      return true;
+    },
+  }}
+>
+  ...
 </AppPageContent>
 ```
 
-Snapshots store both raw `scrollTop` and the first visible stable anchor plus its relative offset. Restoration prefers the anchor, falls back to the pixel position, and finally clamps safely if the old document height can no longer be reached.
+Return `false` if the adapter cannot reveal that anchor; this allows immediate pixel fallback. A void/true return means reveal work was requested and bounded retries should continue.
 
-### Async list restoration
+## Async readiness
 
 Do not report content as ready while only a short loading skeleton is mounted:
 
@@ -73,11 +126,11 @@ Do not report content as ready while only a short loading skeleton is mounted:
 </AppPageContent>
 ```
 
-Once `contentReady` is true, restoration runs before paint where possible and performs a bounded number of animation-frame layout retries. It never polls indefinitely.
+Important search/filter/tab/domain state must be reconstructed before `contentReady` becomes true. Once ready, restoration runs before paint where possible and performs only a bounded number of layout retries.
 
-### Nested scroll containers
+## Nested scroll containers
 
-Use a stable restoration id for every independently scrolling region:
+Use a stable id for every independently restorable region:
 
 ```tsx
 <ScrollArea restoreScroll restorationId="schedule-conflicts">
@@ -85,11 +138,11 @@ Use a stable restoration id for every independently scrolling region:
 </ScrollArea>
 ```
 
-The shell page and nested `ScrollArea` snapshots are independent even though they share the same router history entry.
+Nested areas own independent snapshots even when they share the same router history entry.
 
-### Window-level scrolling
+## Window-level scrolling
 
-Legacy screens that still use document/window scrolling can opt in without changing the router contract:
+For a legacy document-scrolling screen:
 
 ```tsx
 useWindowScrollRestoration({
@@ -98,36 +151,11 @@ useWindowScrollRestoration({
 });
 ```
 
-### Virtualized lists
+This makes migration incremental instead of forcing the new contained viewport on every existing screen at once.
 
-The core does not depend on a virtualizer. Supply an adapter that makes a missing anchor mountable; the design system then retries ordinary anchor restoration:
+## Inputs
 
-```tsx
-<ScrollArea
-  restoreScroll
-  restorationId="ranking"
-  restorationAdapter={{
-    ensureAnchorVisible: (anchorId) => {
-      const index = indexByPlayerId.get(anchorId);
-      if (index != null) virtualizer.scrollToIndex(index);
-    },
-  }}
->
-  ...
-</ScrollArea>
-```
-
-## Touch controls and inputs
-
-`AppButton` uses touch-friendly pointer behaviour and a minimum 44px hit target. `IconButton` requires an accessible label and uses the preferred 48px icon target.
-
-```tsx
-<IconButton ariaLabel="More actions" onClick={openMenu}>
-  <MoreHorizontal aria-hidden="true" />
-</IconButton>
-```
-
-`AppInput` forwards native input properties so the application can describe the correct mobile keyboard and action instead of the design system guessing domain intent:
+`AppInput` forwards native input properties so each product can request the correct mobile keyboard/action:
 
 ```tsx
 <AppInput
@@ -142,35 +170,25 @@ Numeric scores, email addresses and telephone inputs should set their own semant
 
 ## Overlay Back integration
 
-`BottomSheet` and `AppDrawer` continue to use Radix Dialog for focus trapping, inert background behaviour, Escape handling and scroll locking. Their package styles contain internal overscroll and safe-area behaviour.
-
-The consuming router can give Android/browser Back priority to an open overlay without the design system knowing about route APIs:
+`BottomSheet` and `AppDrawer` use Radix Dialog for focus trapping, inert-background behaviour, Escape handling and scroll locking. The consuming navigation layer can let an open overlay consume Android/browser Back before page navigation:
 
 ```tsx
 const consumeOverlayBack = useOverlayBackHandler(sheetOpen, () => setSheetOpen(false));
 
-function onRouterBack() {
+function onProductBack() {
   if (consumeOverlayBack()) return;
-  navigate(-1);
+  goBackInActiveTab();
 }
 ```
 
+The design system deliberately does not import or control a router.
+
 ## Responsibility boundary
 
-The design system owns:
+The design system owns scroll snapshots, stable anchors, progressive-list reveal, readiness/retry, browser restoration coordination, viewport/safe-area mechanics, touch interaction defaults, and overlay primitives.
 
-- scroll position and stable scroll anchors;
-- restoration lifecycle/readiness and bounded retry;
-- page/nested/window scroll-container mechanics;
-- browser `scrollRestoration` coordination;
-- viewport, safe-area, touch, selection and overlay interaction behaviour.
+The application owns history keys, logical PUSH/POP/REPLACE classification, search/filter/tab/domain state, the point at which route data is ready, and any server-paging or virtualizer item-id lookup.
 
-The consuming application/router owns:
+## Runnable acceptance demo
 
-- route/history keys and `PUSH` / `POP` / `REPLACE` classification;
-- search text, filters, selected tabs and query parameters;
-- domain-specific expanded/selected state;
-- the point at which async route data is ready to restore;
-- optional virtualizer item-id to index lookup.
-
-Important list state should be restored before `contentReady` becomes true. Where practical, put that state in the URL or history state so Back reconstructs the same list before the design system restores its visual position.
+The showcase `#mobile` mode uses the real contained viewport and the real default progressive `List` behaviour. Scroll beyond the first 20 rows, open a player, then Back. With async return enabled, the route first renders a loading state; once ready, the list expands to mount the saved deep anchor and restores the same logical row plus relative offset. The same screen also demonstrates nested restoration, selectable text, mobile input semantics, and overlay Back consumption.

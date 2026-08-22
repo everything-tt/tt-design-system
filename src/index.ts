@@ -38,6 +38,7 @@ export {
   type AppHeaderSpacerProps,
   type AppPageContentProps,
   type AppShellPageProps,
+  type AppViewportMode,
   type HeaderClearSize,
   type HeaderIconPosition,
 } from './components/AppShell';

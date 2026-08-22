@@ -1,0 +1,155 @@
+/* Mobile/PWA interaction contract. Keep accessibility escape hatches explicit. */
+html {
+  min-height: 100%;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+[data-app-ui] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+[data-app-ui] input,
+[data-app-ui] textarea,
+[data-app-ui] select,
+[data-app-ui] [contenteditable='true'],
+[data-app-ui] [data-selectable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+button,
+a,
+[role='button'],
+[data-pressable='true'] {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+img:not([draggable='true']) {
+  -webkit-user-drag: none;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent-ring, currentColor);
+  outline-offset: 2px;
+}
+
+.tt-app-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.tt-page-content--scrollable,
+.tt-scroll-area {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tt-page-content--scrollable {
+  flex: 1 1 auto;
+  padding-left: max(0px, env(safe-area-inset-left));
+  padding-right: max(0px, env(safe-area-inset-right));
+}
+
+.tt-scroll-area {
+  position: relative;
+}
+
+[data-scroll-restoring='true'] {
+  overflow-anchor: none;
+}
+
+.tt-safe-area-top { padding-top: env(safe-area-inset-top); }
+.tt-safe-area-right { padding-right: env(safe-area-inset-right); }
+.tt-safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.tt-safe-area-left { padding-left: env(safe-area-inset-left); }
+.tt-safe-area-inline {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+.tt-safe-area-block {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Touch target standards. Visual density can remain compact while the control
+ * hit box stays at least 44px; icon-only controls use the preferred 48px. */
+.tt-btn,
+.tt-btn--s,
+.tt-btn--sm,
+.tt-btn--m,
+.tt-btn--l,
+.tt-segmented__btn {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+.tt-btn--icon-only {
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+}
+
+.tt-app-header__action,
+.tt-root-header__action,
+.tt-sheet__close,
+.tt-drawer__close {
+  min-width: 44px !important;
+  min-height: 44px !important;
+  touch-action: manipulation;
+}
+
+.tt-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--tt-border, var(--border-hairline));
+  border-radius: var(--tt-radius-md, var(--radius-md));
+  background: var(--tt-surface-raised, var(--surface-strong));
+  color: var(--tt-text-primary, var(--ink));
+  font: inherit;
+  font-size: 16px;
+}
+
+.tt-input:focus-visible {
+  border-color: var(--accent);
+  outline: 3px solid var(--accent-ring, currentColor);
+  outline-offset: 1px;
+}
+
+.tt-selectable-text {
+  cursor: text;
+}
+
+.tt-sheet__body,
+.tt-drawer__scroll {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 720px) {
+  .tt-input { font-size: 14px; }
+}

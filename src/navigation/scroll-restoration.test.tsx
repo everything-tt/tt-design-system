@@ -161,8 +161,8 @@ describe('scroll restoration foundations', () => {
         <ListItem scrollAnchorId="player:43" title="Grace Liu" />
       </List>,
     );
-    expect(markup).toContain('class="tt-list-item" data-scroll-anchor="player:42"');
-    expect(markup).toContain('data-scroll-anchor="player:43" class="tt-list-item"');
+    expect(markup).toMatch(/<div[^>]*data-scroll-anchor="player:42"[^>]*class="tt-list-item"/);
+    expect(markup).toMatch(/<div[^>]*data-scroll-anchor="player:43"[^>]*class="tt-list-item"/);
     expect(markup).not.toContain('data-scroll-anchor="player:42"><div');
   });
 

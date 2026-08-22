@@ -1,7 +1,6 @@
-/* Mobile/PWA interaction contract. Keep accessibility escape hatches explicit. */
+/* Mobile/PWA interaction contract. Keep compatibility and accessibility escape hatches explicit. */
 html {
   min-height: 100%;
-  overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -9,13 +8,13 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   margin: 0;
-  -webkit-tap-highlight-color: transparent;
 }
 
 [data-app-ui] {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 [data-app-ui] input,
@@ -28,26 +27,29 @@ body {
   -webkit-touch-callout: default;
 }
 
-button,
-a,
-[role='button'],
-[data-pressable='true'] {
+[data-app-ui] button,
+[data-app-ui] a,
+[data-app-ui] [role='button'],
+[data-app-ui] [data-pressable='true'] {
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-img:not([draggable='true']) {
+[data-app-ui] img:not([draggable='true']) {
   -webkit-user-drag: none;
 }
 
-:focus-visible {
+[data-app-ui] :focus-visible {
   outline: 3px solid var(--accent-ring, currentColor);
   outline-offset: 2px;
 }
 
-.tt-app-shell {
+/* Existing consumers keep document/window scrolling. Contained viewport mode is
+ * an explicit migration boundary so package adoption cannot silently break old
+ * window.scrollY/window.scrollTo navigation code. */
+.tt-app-shell--contained {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -72,13 +74,8 @@ img:not([draggable='true']) {
   padding-right: max(0px, env(safe-area-inset-right));
 }
 
-.tt-scroll-area {
-  position: relative;
-}
-
-[data-scroll-restoring='true'] {
-  overflow-anchor: none;
-}
+.tt-scroll-area { position: relative; }
+[data-scroll-restoring='true'] { overflow-anchor: none; }
 
 .tt-safe-area-top { padding-top: env(safe-area-inset-top); }
 .tt-safe-area-right { padding-right: env(safe-area-inset-right); }
@@ -93,17 +90,21 @@ img:not([draggable='true']) {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Touch target standards. Visual density can remain compact while the control
- * hit box stays at least 44px; icon-only controls use the preferred 48px. */
+/* Touch target standards for exported interactive primitives. */
 .tt-btn,
 .tt-btn--s,
 .tt-btn--sm,
 .tt-btn--m,
 .tt-btn--l,
-.tt-segmented__btn {
+.tt-segmented__btn,
+.tt-toggle-button,
+.tt-external-link,
+.tt-infinite-list-footer button {
   min-height: 44px;
   touch-action: manipulation;
 }
+
+.tt-external-link { min-width: 44px; }
 
 .tt-btn--icon-only {
   width: 48px;
@@ -140,14 +141,16 @@ img:not([draggable='true']) {
   outline-offset: 1px;
 }
 
-.tt-selectable-text {
-  cursor: text;
-}
+.tt-selectable-text { cursor: text; }
 
 .tt-sheet__body,
 .tt-drawer__scroll {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+.tt-confirmation-dialog {
+  max-height: calc(100dvh - max(2rem, env(safe-area-inset-top)) - max(2rem, env(safe-area-inset-bottom)));
 }
 
 @media (min-width: 720px) {

@@ -1,12 +1,15 @@
 import React, { MouseEventHandler, ReactNode } from 'react';
 import { cx } from '../utils/cx';
 import {
+  ScrollRestorationRevealScope,
   useScrollRestorationRef,
+  useScrollRestorationRevealRegistry,
   type ScrollRestorationAdapter,
 } from '../navigation/scroll-restoration';
 
 export type HeaderIconPosition = 1 | 2 | 3 | 4;
 export type HeaderClearSize = 'small' | 'medium' | 'large';
+export type AppViewportMode = 'document' | 'contained';
 
 export interface AppHeaderAction {
   iconClassName: string;
@@ -21,13 +24,15 @@ export interface AppShellPageProps {
   children: ReactNode;
   className?: string;
   id?: string;
+  /** `document` preserves the legacy window scroller. `contained` opts into the 100dvh owned viewport. */
+  viewport?: AppViewportMode;
 }
 
 export interface AppPageContentProps {
   children: ReactNode;
   className?: string;
   style?: React.CSSProperties;
-  /** Own page scrolling inside the 100dvh app shell. Defaults to true. */
+  /** Own page scrolling inside a contained app shell. Defaults to true when restoreScroll is enabled. */
   scrollable?: boolean;
   /** Restore this page container from navigation history when a provider is present. */
   restoreScroll?: boolean;
@@ -44,7 +49,6 @@ export interface AppHeaderSpacerProps {
 
 export interface AppHeaderProps {
   title?: ReactNode;
-  /** When true, render the title as an <h1> so the route exposes a page landmark heading. */
   heading?: boolean;
   onTitleClick?: MouseEventHandler<HTMLButtonElement>;
   leftAction?: AppHeaderAction;
@@ -77,13 +81,18 @@ export function AppHeaderActionLink({ iconClassName, onClick, position, ariaLabe
   );
 }
 
-export function AppShellPage({ children, className, id = 'page' }: AppShellPageProps) {
+export function AppShellPage({ children, className, id = 'page', viewport = 'document' }: AppShellPageProps) {
   return (
     <div
       id={id}
-      className={cx('app-shell-page', 'tt-app-shell', className)}
+      className={cx(
+        'app-shell-page',
+        'tt-app-shell',
+        viewport === 'contained' && 'tt-app-shell--contained',
+        className,
+      )}
       data-app-ui="true"
-      data-app-viewport="true"
+      data-app-viewport={viewport}
     >
       {children}
     </div>
@@ -98,7 +107,7 @@ export const AppPageContent = React.forwardRef<HTMLElement, AppPageContentProps>
   children,
   className,
   style,
-  scrollable = true,
+  scrollable,
   restoreScroll = false,
   restorationId = 'page',
   contentReady = true,
@@ -106,12 +115,14 @@ export const AppPageContent = React.forwardRef<HTMLElement, AppPageContentProps>
   restorationAdapter,
   maxRestoreFrames,
 }, forwardedRef) => {
+  const ownsScroll = scrollable ?? restoreScroll;
+  const revealRegistry = useScrollRestorationRevealRegistry(restorationAdapter);
   const restorationRef = useScrollRestorationRef<HTMLElement>({
     restorationId,
     enabled: restoreScroll,
     contentReady,
     anchorSelector,
-    adapter: restorationAdapter,
+    adapter: revealRegistry.adapter,
     maxRestoreFrames,
   });
 
@@ -124,13 +135,15 @@ export const AppPageContent = React.forwardRef<HTMLElement, AppPageContentProps>
       className={cx(
         'page-content',
         'tt-page-content',
-        scrollable && 'tt-page-content--scrollable',
+        ownsScroll && 'tt-page-content--scrollable',
         className,
       )}
       style={style}
-      data-scroll-container={scrollable ? restorationId : undefined}
+      data-scroll-container={ownsScroll ? restorationId : undefined}
     >
-      {children}
+      <ScrollRestorationRevealScope register={revealRegistry.register}>
+        {children}
+      </ScrollRestorationRevealScope>
     </main>
   );
 });

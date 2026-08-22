@@ -1,14 +1,16 @@
 import React, { useId, type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '../lib/utils';
 import {
+  ScrollRestorationRevealScope,
   useScrollRestorationRef,
+  useScrollRestorationRevealRegistry,
   type ScrollRestorationAdapter,
 } from '../navigation/scroll-restoration';
 
 export interface ScrollAreaProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   children: ReactNode;
   restoreScroll?: boolean;
-  /** Stable within the navigation entry. Required when multiple areas are restorable. */
+  /** Stable within the navigation entry. Pass explicitly for independently restorable areas. */
   restorationId?: string;
   contentReady?: boolean;
   anchorSelector?: string;
@@ -21,7 +23,6 @@ function assignRef<T>(ref: React.ForwardedRef<T>, value: T | null) {
   else if (ref) ref.current = value;
 }
 
-/** Mobile scroll container with overscroll containment and optional history restoration. */
 export const ScrollArea = React.forwardRef<HTMLDivElement, ScrollAreaProps>(({
   children,
   className,
@@ -35,12 +36,13 @@ export const ScrollArea = React.forwardRef<HTMLDivElement, ScrollAreaProps>(({
 }, forwardedRef) => {
   const generatedId = useId();
   const stableRestorationId = restorationId ?? `scroll-area:${generatedId}`;
+  const revealRegistry = useScrollRestorationRevealRegistry(restorationAdapter);
   const restorationRef = useScrollRestorationRef<HTMLDivElement>({
     restorationId: stableRestorationId,
     enabled: restoreScroll,
     contentReady,
     anchorSelector,
-    adapter: restorationAdapter,
+    adapter: revealRegistry.adapter,
     maxRestoreFrames,
   });
 
@@ -54,7 +56,9 @@ export const ScrollArea = React.forwardRef<HTMLDivElement, ScrollAreaProps>(({
       className={cn('tt-scroll-area', className)}
       data-scroll-container={stableRestorationId}
     >
-      {children}
+      <ScrollRestorationRevealScope register={revealRegistry.register}>
+        {children}
+      </ScrollRestorationRevealScope>
     </div>
   );
 });
@@ -64,12 +68,24 @@ ScrollArea.displayName = 'ScrollArea';
 export interface ScrollAnchorProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   anchorId: string;
   children: ReactNode;
+  /** Put the anchor attribute on the child itself, preserving direct-child list/grid structure. */
+  asChild?: boolean;
 }
 
-/** Stable logical item used by anchor + offset scroll restoration. */
-export function ScrollAnchor({ anchorId, children, ...props }: ScrollAnchorProps) {
+export function ScrollAnchor({ anchorId, children, asChild = false, className, ...props }: ScrollAnchorProps) {
+  if (asChild) {
+    if (!React.isValidElement<Record<string, unknown>>(children)) {
+      throw new Error('ScrollAnchor with asChild requires exactly one React element child.');
+    }
+    const childClassName = typeof children.props.className === 'string' ? children.props.className : undefined;
+    return React.cloneElement(children, {
+      ...props,
+      className: cn(childClassName, className),
+      'data-scroll-anchor': anchorId,
+    });
+  }
   return (
-    <div {...props} data-scroll-anchor={anchorId}>
+    <div {...props} className={className} data-scroll-anchor={anchorId}>
       {children}
     </div>
   );

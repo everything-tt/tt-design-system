@@ -26,12 +26,12 @@ export interface ScrollSnapshot {
 }
 
 /**
- * Optional bridge for virtualized lists. The design system asks the consumer to
- * make an item mountable, then retries normal anchor restoration on subsequent
- * animation frames. It deliberately does not depend on a virtualizer library.
+ * Optional bridge for progressively rendered or virtualized content. Return
+ * false when the adapter cannot reveal the requested anchor so pixel fallback
+ * can be attempted immediately. A void return means reveal work was requested.
  */
 export interface ScrollRestorationAdapter {
-  ensureAnchorVisible: (anchorId: string) => void;
+  ensureAnchorVisible: (anchorId: string) => boolean | void;
 }
 
 export interface ScrollRestorationControllerOptions {
@@ -53,8 +53,6 @@ export class ScrollRestorationController {
   get(key: string): ScrollSnapshot | undefined {
     const snapshot = this.snapshots.get(key);
     if (!snapshot) return undefined;
-
-    // Touch the entry so cleanup follows least-recently-used behaviour.
     this.snapshots.delete(key);
     this.snapshots.set(key, snapshot);
     return cloneSnapshot(snapshot);
@@ -63,7 +61,6 @@ export class ScrollRestorationController {
   save(key: string, snapshot: ScrollSnapshot) {
     this.snapshots.delete(key);
     this.snapshots.set(key, cloneSnapshot(snapshot));
-
     while (this.snapshots.size > this.maxEntries) {
       const oldestKey = this.snapshots.keys().next().value as string | undefined;
       if (!oldestKey) break;
@@ -99,6 +96,7 @@ const ScrollRestorationContext = createContext<ScrollRestorationContextValue | n
 
 export interface ScrollRestorationProviderProps {
   navigationKey: string;
+  /** Logical navigation operation. Custom tab stacks may classify a router REPLACE as POP. */
   navigationType: NavigationType;
   children: ReactNode;
   controller?: ScrollRestorationController;
@@ -141,7 +139,6 @@ export function ScrollRestorationProvider({
   useLayoutEffect(() => {
     if (!manageBrowserRestoration || typeof window === 'undefined') return undefined;
     if (!('scrollRestoration' in window.history)) return undefined;
-
     const previous = window.history.scrollRestoration;
     window.history.scrollRestoration = 'manual';
     return () => {
@@ -168,9 +165,11 @@ export function getRestorationDecision(
   hasSnapshot: boolean,
   contentReady: boolean,
 ): RestorationDecision {
-  const action = getNavigationRestorationAction(type);
-  if (action === 'reset') return 'reset';
-  if (action === 'preserve') return 'preserve';
+  if (type === 'PUSH') return 'reset';
+  if (type === 'REPLACE') {
+    if (!hasSnapshot) return 'preserve';
+    return contentReady ? 'restore' : 'wait';
+  }
   if (!hasSnapshot) return 'reset';
   return contentReady ? 'restore' : 'wait';
 }
@@ -235,7 +234,6 @@ function findAnchor(
   if (anchorId != null) {
     return Array.from(anchors).find((anchor) => anchor.dataset.scrollAnchor === anchorId);
   }
-
   const viewportTop = getViewportTop(target);
   const viewportBottom = viewportTop + getViewportHeight(target);
   return Array.from(anchors).find((anchor) => {
@@ -250,7 +248,6 @@ export function captureScrollSnapshot(
 ): ScrollSnapshot {
   const anchor = findAnchor(target, anchorSelector);
   const viewportTop = getViewportTop(target);
-
   return {
     scrollTop: getScrollTop(target),
     anchor: anchor?.dataset.scrollAnchor
@@ -273,7 +270,6 @@ export function restoreScrollSnapshot(
   } = {},
 ): RestoreAttemptResult {
   const anchorSelector = options.anchorSelector ?? '[data-scroll-anchor]';
-
   if (snapshot.anchor) {
     const anchor = findAnchor(target, anchorSelector, snapshot.anchor.id);
     if (anchor) {
@@ -281,18 +277,15 @@ export function restoreScrollSnapshot(
       setScrollTop(target, getScrollTop(target) + currentOffset - snapshot.anchor.offset);
       return 'restored';
     }
-
     if (options.adapter) {
-      options.adapter.ensureAnchorVisible(snapshot.anchor.id);
-      return 'waiting';
+      const requested = options.adapter.ensureAnchorVisible(snapshot.anchor.id);
+      if (requested !== false) return 'waiting';
     }
   }
-
   if (snapshot.scrollTop <= getMaxScrollTop(target) + 1) {
     setScrollTop(target, snapshot.scrollTop);
     return 'restored';
   }
-
   return 'waiting';
 }
 
@@ -315,6 +308,48 @@ function cancelScheduledFrame(frame: number | null) {
   if (frame == null) return;
   if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(frame);
   else window.clearTimeout(frame);
+}
+
+export type ScrollAnchorRevealer = (anchorId: string) => boolean;
+type RegisterScrollAnchorRevealer = (revealer: ScrollAnchorRevealer) => () => void;
+const ScrollRevealContext = createContext<{ register: RegisterScrollAnchorRevealer } | null>(null);
+
+/** Internal registry used by progressive lists before an external virtualizer adapter. */
+export function useScrollRestorationRevealRegistry(externalAdapter?: ScrollRestorationAdapter) {
+  const revealersRef = useRef(new Set<ScrollAnchorRevealer>());
+  const register = useCallback<RegisterScrollAnchorRevealer>((revealer) => {
+    revealersRef.current.add(revealer);
+    return () => revealersRef.current.delete(revealer);
+  }, []);
+  const adapter = useMemo<ScrollRestorationAdapter>(() => ({
+    ensureAnchorVisible(anchorId) {
+      for (const revealer of revealersRef.current) {
+        if (revealer(anchorId)) return true;
+      }
+      if (externalAdapter) {
+        externalAdapter.ensureAnchorVisible(anchorId);
+        return true;
+      }
+      return false;
+    },
+  }), [externalAdapter]);
+  return useMemo(() => ({ adapter, register }), [adapter, register]);
+}
+
+export function ScrollRestorationRevealScope({
+  register,
+  children,
+}: {
+  register: RegisterScrollAnchorRevealer;
+  children: ReactNode;
+}) {
+  const value = useMemo(() => ({ register }), [register]);
+  return <ScrollRevealContext.Provider value={value}>{children}</ScrollRevealContext.Provider>;
+}
+
+export function useScrollAnchorRevealer(revealer: ScrollAnchorRevealer) {
+  const context = useContext(ScrollRevealContext);
+  useLayoutEffect(() => context?.register(revealer), [context, revealer]);
 }
 
 export interface ScrollRestorationOptions {
@@ -346,19 +381,12 @@ function useTargetScrollRestoration(
     const target = getTarget();
     if (!target) return undefined;
 
-    const {
-      navigationKey,
-      navigationType,
-      controller,
-      replacedNavigationKey,
-    } = context;
+    const { navigationKey, navigationType, controller, replacedNavigationKey } = context;
     const storageKey = getRestorationStorageKey(navigationKey, restorationId);
     const previousStorageKey = previousStorageKeyRef.current;
     previousStorageKeyRef.current = storageKey;
 
-    // REPLACE owns one history entry. The provider keeps the superseded
-    // navigation key so this cleanup still works if the restorable child was
-    // remounted and therefore lost its local previousStorageKey ref.
+    let snapshot: ScrollSnapshot | undefined;
     if (navigationType === 'REPLACE') {
       const supersededStorageKey = previousStorageKey && previousStorageKey !== storageKey
         ? previousStorageKey
@@ -366,8 +394,11 @@ function useTargetScrollRestoration(
           ? getRestorationStorageKey(replacedNavigationKey, restorationId)
           : undefined;
       if (supersededStorageKey && supersededStorageKey !== storageKey) {
-        controller.delete(supersededStorageKey);
+        controller.replaceKey(supersededStorageKey, storageKey);
       }
+      snapshot = controller.get(storageKey);
+    } else if (navigationType === 'POP') {
+      snapshot = controller.get(storageKey);
     }
 
     let cancelled = false;
@@ -389,9 +420,6 @@ function useTargetScrollRestoration(
     };
 
     target.addEventListener('scroll', onScroll, { passive: true });
-
-    const action = getNavigationRestorationAction(navigationType);
-    const snapshot = action === 'restore' ? controller.get(storageKey) : undefined;
     const decision = getRestorationDecision(navigationType, snapshot != null, contentReady);
 
     if (decision === 'reset') {
@@ -402,7 +430,6 @@ function useTargetScrollRestoration(
     } else {
       pendingRestore = true;
       setRestoringState(target, true);
-
       if (decision === 'restore' && snapshot) {
         const frameLimit = Math.max(0, Math.floor(maxRestoreFrames));
         const attemptRestore = (attempt: number) => {
@@ -414,7 +441,6 @@ function useTargetScrollRestoration(
             save();
             return;
           }
-
           if (attempt >= frameLimit) {
             forcePixelFallback(target, snapshot);
             pendingRestore = false;
@@ -422,10 +448,8 @@ function useTargetScrollRestoration(
             save();
             return;
           }
-
           restoreFrame = scheduleFrame(() => attemptRestore(attempt + 1));
         };
-
         attemptRestore(0);
       }
     }
@@ -459,7 +483,6 @@ export function useScrollRestorationRef<T extends HTMLElement>(
   const elementRef = useRef<T | null>(null);
   const getTarget = useCallback(() => elementRef.current, []);
   useTargetScrollRestoration(getTarget, options);
-
   return useCallback((node: T | null) => {
     elementRef.current = node;
   }, []);

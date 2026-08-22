@@ -10,9 +10,16 @@ export function getCollapsibleHeaderState(scrollTop: number, wasCompact: boolean
 
 function readScrollTop(event?: Event): number {
   const target = event?.target;
-  if (typeof HTMLElement !== 'undefined' && target instanceof HTMLElement) {
+
+  if (event?.type === 'scroll' && typeof HTMLElement !== 'undefined' && target instanceof HTMLElement) {
     return Math.max(target.scrollTop, 0);
   }
+
+  if (event?.type === 'touchmove' && typeof Element !== 'undefined' && target instanceof Element) {
+    const container = target.closest<HTMLElement>('[data-scroll-container]');
+    if (container) return Math.max(container.scrollTop, 0);
+  }
+
   return window.scrollY
     || document.scrollingElement?.scrollTop
     || document.documentElement.scrollTop

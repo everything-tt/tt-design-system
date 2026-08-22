@@ -326,11 +326,8 @@ export function useScrollRestorationRevealRegistry(externalAdapter?: ScrollResto
       for (const revealer of revealersRef.current) {
         if (revealer(anchorId)) return true;
       }
-      if (externalAdapter) {
-        externalAdapter.ensureAnchorVisible(anchorId);
-        return true;
-      }
-      return false;
+      if (!externalAdapter) return false;
+      return externalAdapter.ensureAnchorVisible(anchorId);
     },
   }), [externalAdapter]);
   return useMemo(() => ({ adapter, register }), [adapter, register]);

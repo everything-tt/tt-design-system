@@ -5,11 +5,13 @@ import {
   ScrollRestorationProvider,
   captureScrollSnapshot,
   getNavigationRestorationAction,
+  getRestorationDecision,
   restoreScrollSnapshot,
 } from './scroll-restoration';
 import { ScrollAnchor, ScrollArea } from '../components/ScrollArea';
 import { SelectableText } from '../components/SelectableText';
 import { IconButton } from '../components/IconButton';
+import { Pressable } from '../components/Pressable';
 
 const snapshot = (scrollTop: number, id?: string) => ({
   scrollTop,
@@ -67,10 +69,22 @@ function fakeTarget({
 }
 
 describe('scroll restoration foundations', () => {
-  it('defines PUSH, POP and REPLACE semantics explicitly', () => {
+  it('defines PUSH, Back/Forward POP and REPLACE semantics explicitly', () => {
     expect(getNavigationRestorationAction('PUSH')).toBe('reset');
     expect(getNavigationRestorationAction('POP')).toBe('restore');
     expect(getNavigationRestorationAction('REPLACE')).toBe('preserve');
+
+    // Routers report both Back and Forward as POP; the same saved history entry
+    // restoration policy therefore applies in both directions.
+    expect(getRestorationDecision('POP', true, true)).toBe('restore');
+  });
+
+  it('waits for async content readiness before restoring a POP snapshot', () => {
+    expect(getRestorationDecision('POP', true, false)).toBe('wait');
+    expect(getRestorationDecision('POP', true, true)).toBe('restore');
+    expect(getRestorationDecision('POP', false, false)).toBe('reset');
+    expect(getRestorationDecision('PUSH', true, false)).toBe('reset');
+    expect(getRestorationDecision('REPLACE', true, false)).toBe('preserve');
   });
 
   it('bounds restoration state using least-recently-used cleanup', () => {
@@ -152,13 +166,14 @@ describe('scroll restoration foundations', () => {
     expect(ensureAnchorVisible).toHaveBeenCalledWith('player:78');
   });
 
-  it('renders selectable, anchor, nested-scroll and accessible icon contracts', () => {
+  it('renders selectable, pressable, anchor, nested-scroll and accessible icon contracts', () => {
     const markup = renderToStaticMarkup(
       <ScrollRestorationProvider navigationKey="entry-1" navigationType="PUSH">
         <ScrollArea restoreScroll restorationId="results">
           <ScrollAnchor anchorId="player:42">
             <SelectableText>Registration 123456</SelectableText>
           </ScrollAnchor>
+          <Pressable pressed aria-label="Toggle compact mode">Compact</Pressable>
           <IconButton ariaLabel="Open actions">•••</IconButton>
         </ScrollArea>
       </ScrollRestorationProvider>,
@@ -168,6 +183,8 @@ describe('scroll restoration foundations', () => {
     expect(markup).toContain('data-scroll-container="results"');
     expect(markup).toContain('data-scroll-anchor="player:42"');
     expect(markup).toContain('data-selectable="true"');
+    expect(markup).toContain('class="tt-pressable"');
+    expect(markup).toContain('aria-pressed="true"');
     expect(markup).toContain('aria-label="Open actions"');
     expect(markup).toContain('tt-btn--icon-only');
   });

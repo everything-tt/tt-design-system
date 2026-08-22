@@ -8,12 +8,14 @@ export {
   ScrollRestorationProvider,
   captureScrollSnapshot,
   getNavigationRestorationAction,
+  getRestorationDecision,
   getRestorationStorageKey,
   restoreScrollSnapshot,
   useScrollRestorationRef,
   useWindowScrollRestoration,
   type NavigationRestorationAction,
   type NavigationType,
+  type RestorationDecision,
   type RestoreAttemptResult,
   type ScrollAnchorSnapshot,
   type ScrollRestorationAdapter,
@@ -51,6 +53,7 @@ export { FilterBar, type FilterBarProps } from './components/FilterBar';
 export { DesignList, DesignAvatar, type DesignListProps, type DesignListDensity, type DesignAvatarProps } from './components/DesignList';
 export { ScrollArea, ScrollAnchor, type ScrollAreaProps, type ScrollAnchorProps } from './components/ScrollArea';
 export { SelectableText, type SelectableTextProps } from './components/SelectableText';
+export { Pressable, type PressableProps } from './components/Pressable';
 export { IconButton, type IconButtonProps } from './components/IconButton';
 export { AppInput, type AppInputProps } from './components/AppInput';
 export { useOverlayBackHandler } from './components/overlay-back';

@@ -11,6 +11,7 @@ import {
 
 export type NavigationType = 'PUSH' | 'POP' | 'REPLACE';
 export type NavigationRestorationAction = 'reset' | 'restore' | 'preserve';
+export type RestorationDecision = 'reset' | 'restore' | 'wait' | 'preserve';
 export type ScrollRestorationTarget = HTMLElement | Window;
 
 export interface ScrollAnchorSnapshot {
@@ -90,6 +91,8 @@ interface ScrollRestorationContextValue {
   navigationKey: string;
   navigationType: NavigationType;
   controller: ScrollRestorationController;
+  /** Previous history key retained across child remounts during REPLACE. */
+  replacedNavigationKey?: string;
 }
 
 const ScrollRestorationContext = createContext<ScrollRestorationContextValue | null>(null);
@@ -113,16 +116,27 @@ export function ScrollRestorationProvider({
   manageBrowserRestoration = true,
 }: ScrollRestorationProviderProps) {
   const internalControllerRef = useRef<ScrollRestorationController | null>(null);
+  const previousNavigationKeyRef = useRef(navigationKey);
   if (!internalControllerRef.current) {
     internalControllerRef.current = new ScrollRestorationController({ maxEntries });
   }
 
   const activeController = controller ?? internalControllerRef.current;
+  const replacedNavigationKey = navigationType === 'REPLACE'
+    && previousNavigationKeyRef.current !== navigationKey
+    ? previousNavigationKeyRef.current
+    : undefined;
+
   const value = useMemo<ScrollRestorationContextValue>(() => ({
     navigationKey,
     navigationType,
     controller: activeController,
-  }), [activeController, navigationKey, navigationType]);
+    replacedNavigationKey,
+  }), [activeController, navigationKey, navigationType, replacedNavigationKey]);
+
+  useLayoutEffect(() => {
+    previousNavigationKeyRef.current = navigationKey;
+  }, [navigationKey]);
 
   useLayoutEffect(() => {
     if (!manageBrowserRestoration || typeof window === 'undefined') return undefined;
@@ -146,6 +160,19 @@ export function getNavigationRestorationAction(type: NavigationType): Navigation
   if (type === 'PUSH') return 'reset';
   if (type === 'POP') return 'restore';
   return 'preserve';
+}
+
+/** Pure policy helper used by the hook and regression tests. Forward is POP. */
+export function getRestorationDecision(
+  type: NavigationType,
+  hasSnapshot: boolean,
+  contentReady: boolean,
+): RestorationDecision {
+  const action = getNavigationRestorationAction(type);
+  if (action === 'reset') return 'reset';
+  if (action === 'preserve') return 'preserve';
+  if (!hasSnapshot) return 'reset';
+  return contentReady ? 'restore' : 'wait';
 }
 
 export function getRestorationStorageKey(navigationKey: string, restorationId: string) {
@@ -319,15 +346,28 @@ function useTargetScrollRestoration(
     const target = getTarget();
     if (!target) return undefined;
 
-    const { navigationKey, navigationType, controller } = context;
+    const {
+      navigationKey,
+      navigationType,
+      controller,
+      replacedNavigationKey,
+    } = context;
     const storageKey = getRestorationStorageKey(navigationKey, restorationId);
     const previousStorageKey = previousStorageKeyRef.current;
     previousStorageKeyRef.current = storageKey;
 
-    // REPLACE owns the current history entry rather than creating a second
-    // restorable entry for the same visual screen.
-    if (navigationType === 'REPLACE' && previousStorageKey && previousStorageKey !== storageKey) {
-      controller.delete(previousStorageKey);
+    // REPLACE owns one history entry. The provider keeps the superseded
+    // navigation key so this cleanup still works if the restorable child was
+    // remounted and therefore lost its local previousStorageKey ref.
+    if (navigationType === 'REPLACE') {
+      const supersededStorageKey = previousStorageKey && previousStorageKey !== storageKey
+        ? previousStorageKey
+        : replacedNavigationKey
+          ? getRestorationStorageKey(replacedNavigationKey, restorationId)
+          : undefined;
+      if (supersededStorageKey && supersededStorageKey !== storageKey) {
+        controller.delete(supersededStorageKey);
+      }
     }
 
     let cancelled = false;
@@ -351,45 +391,42 @@ function useTargetScrollRestoration(
     target.addEventListener('scroll', onScroll, { passive: true });
 
     const action = getNavigationRestorationAction(navigationType);
-    if (action === 'reset') {
+    const snapshot = action === 'restore' ? controller.get(storageKey) : undefined;
+    const decision = getRestorationDecision(navigationType, snapshot != null, contentReady);
+
+    if (decision === 'reset') {
       setScrollTop(target, 0);
       save();
-    } else if (action === 'preserve') {
+    } else if (decision === 'preserve') {
       save();
     } else {
-      const snapshot = controller.get(storageKey);
-      if (!snapshot) {
-        setScrollTop(target, 0);
-        save();
-      } else {
-        pendingRestore = true;
-        setRestoringState(target, true);
+      pendingRestore = true;
+      setRestoringState(target, true);
 
-        if (contentReady) {
-          const frameLimit = Math.max(0, Math.floor(maxRestoreFrames));
-          const attemptRestore = (attempt: number) => {
-            if (cancelled) return;
-            const result = restoreScrollSnapshot(target, snapshot, { anchorSelector, adapter });
-            if (result === 'restored') {
-              pendingRestore = false;
-              setRestoringState(target, false);
-              save();
-              return;
-            }
+      if (decision === 'restore' && snapshot) {
+        const frameLimit = Math.max(0, Math.floor(maxRestoreFrames));
+        const attemptRestore = (attempt: number) => {
+          if (cancelled) return;
+          const result = restoreScrollSnapshot(target, snapshot, { anchorSelector, adapter });
+          if (result === 'restored') {
+            pendingRestore = false;
+            setRestoringState(target, false);
+            save();
+            return;
+          }
 
-            if (attempt >= frameLimit) {
-              forcePixelFallback(target, snapshot);
-              pendingRestore = false;
-              setRestoringState(target, false);
-              save();
-              return;
-            }
+          if (attempt >= frameLimit) {
+            forcePixelFallback(target, snapshot);
+            pendingRestore = false;
+            setRestoringState(target, false);
+            save();
+            return;
+          }
 
-            restoreFrame = scheduleFrame(() => attemptRestore(attempt + 1));
-          };
+          restoreFrame = scheduleFrame(() => attemptRestore(attempt + 1));
+        };
 
-          attemptRestore(0);
-        }
+        attemptRestore(0);
       }
     }
 

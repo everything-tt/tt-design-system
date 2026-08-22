@@ -3,6 +3,26 @@ export { ThemeProvider, useTheme, type ThemeContextType, type ThemeProviderProps
 
 // Navigation behaviour
 export { getCollapsibleHeaderState, useCollapsibleHeader } from './navigation/collapsible-header';
+export {
+  ScrollRestorationController,
+  ScrollRestorationProvider,
+  captureScrollSnapshot,
+  getNavigationRestorationAction,
+  getRestorationStorageKey,
+  restoreScrollSnapshot,
+  useScrollRestorationRef,
+  useWindowScrollRestoration,
+  type NavigationRestorationAction,
+  type NavigationType,
+  type RestoreAttemptResult,
+  type ScrollAnchorSnapshot,
+  type ScrollRestorationAdapter,
+  type ScrollRestorationControllerOptions,
+  type ScrollRestorationOptions,
+  type ScrollRestorationProviderProps,
+  type ScrollRestorationTarget,
+  type ScrollSnapshot,
+} from './navigation/scroll-restoration';
 
 // Components
 export {
@@ -29,6 +49,11 @@ export { EntityHero, type EntityHeroProps } from './components/EntityHero';
 export { MetricGrid, type MetricGridProps, type MetricItem } from './components/MetricGrid';
 export { FilterBar, type FilterBarProps } from './components/FilterBar';
 export { DesignList, DesignAvatar, type DesignListProps, type DesignListDensity, type DesignAvatarProps } from './components/DesignList';
+export { ScrollArea, ScrollAnchor, type ScrollAreaProps, type ScrollAnchorProps } from './components/ScrollArea';
+export { SelectableText, type SelectableTextProps } from './components/SelectableText';
+export { IconButton, type IconButtonProps } from './components/IconButton';
+export { AppInput, type AppInputProps } from './components/AppInput';
+export { useOverlayBackHandler } from './components/overlay-back';
 
 export {
   AppCard,

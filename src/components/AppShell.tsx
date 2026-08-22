@@ -1,5 +1,9 @@
 import React, { MouseEventHandler, ReactNode } from 'react';
 import { cx } from '../utils/cx';
+import {
+  useScrollRestorationRef,
+  type ScrollRestorationAdapter,
+} from '../navigation/scroll-restoration';
 
 export type HeaderIconPosition = 1 | 2 | 3 | 4;
 export type HeaderClearSize = 'small' | 'medium' | 'large';
@@ -23,6 +27,15 @@ export interface AppPageContentProps {
   children: ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  /** Own page scrolling inside the 100dvh app shell. Defaults to true. */
+  scrollable?: boolean;
+  /** Restore this page container from navigation history when a provider is present. */
+  restoreScroll?: boolean;
+  restorationId?: string;
+  contentReady?: boolean;
+  anchorSelector?: string;
+  restorationAdapter?: ScrollRestorationAdapter;
+  maxRestoreFrames?: number;
 }
 
 export interface AppHeaderSpacerProps {
@@ -44,6 +57,11 @@ export interface AppHeaderProps {
   ref?: React.Ref<HTMLElement>;
 }
 
+function assignRef<T>(ref: React.ForwardedRef<T>, value: T | null) {
+  if (typeof ref === 'function') ref(value);
+  else if (ref) ref.current = value;
+}
+
 export function AppHeaderActionLink({ iconClassName, onClick, position, ariaLabel, className, badgeContent }: AppHeaderAction) {
   return (
     <button
@@ -51,6 +69,7 @@ export function AppHeaderActionLink({ iconClassName, onClick, position, ariaLabe
       className={cx('header-icon', `header-icon-${position}`, 'tt-app-header__action', className)}
       aria-label={ariaLabel}
       onClick={onClick}
+      data-pressable="true"
     >
       <i className={iconClassName} aria-hidden="true" />
       {badgeContent}
@@ -59,20 +78,64 @@ export function AppHeaderActionLink({ iconClassName, onClick, position, ariaLabe
 }
 
 export function AppShellPage({ children, className, id = 'page' }: AppShellPageProps) {
-  return <div id={id} className={cx('app-shell-page', 'tt-app-shell', className)}>{children}</div>;
+  return (
+    <div
+      id={id}
+      className={cx('app-shell-page', 'tt-app-shell', className)}
+      data-app-ui="true"
+      data-app-viewport="true"
+    >
+      {children}
+    </div>
+  );
 }
 
 export function AppHeaderSpacer({ size = 'medium' }: AppHeaderSpacerProps) {
   return <div className={cx(`header-clear-${size}`, 'tt-app-header-spacer')} aria-hidden="true" />;
 }
 
-export function AppPageContent({ children, className, style }: AppPageContentProps) {
+export const AppPageContent = React.forwardRef<HTMLElement, AppPageContentProps>(({
+  children,
+  className,
+  style,
+  scrollable = true,
+  restoreScroll = false,
+  restorationId = 'page',
+  contentReady = true,
+  anchorSelector,
+  restorationAdapter,
+  maxRestoreFrames,
+}, forwardedRef) => {
+  const restorationRef = useScrollRestorationRef<HTMLElement>({
+    restorationId,
+    enabled: restoreScroll,
+    contentReady,
+    anchorSelector,
+    adapter: restorationAdapter,
+    maxRestoreFrames,
+  });
+
   return (
-    <main className={cx('page-content', 'tt-page-content', className)} style={style}>
+    <main
+      ref={(node) => {
+        restorationRef(node);
+        assignRef(forwardedRef, node);
+      }}
+      className={cx(
+        'page-content',
+        'tt-page-content',
+        scrollable && 'tt-page-content--scrollable',
+        className,
+      )}
+      style={style}
+      data-scroll-container={scrollable ? restorationId : undefined}
+    >
       {children}
     </main>
   );
-}
+});
+
+AppPageContent.displayName = 'AppPageContent';
 
 export const AppHeader = React.forwardRef<HTMLElement, AppHeaderProps>(({
   title,
@@ -98,7 +161,7 @@ export const AppHeader = React.forwardRef<HTMLElement, AppHeaderProps>(({
       ) : (
         <>
           {onTitleClick ? (
-            <button type="button" className="header-title tt-app-header__title" onClick={onTitleClick}>{title}</button>
+            <button type="button" className="header-title tt-app-header__title" onClick={onTitleClick} data-pressable="true">{title}</button>
           ) : heading ? (
             <h1 className="header-title tt-app-header__title">{title}</h1>
           ) : (

@@ -7,16 +7,23 @@ import {
   type ScrollRestorationAdapter,
 } from '../navigation/scroll-restoration';
 
-export interface ScrollAreaProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
+interface ScrollAreaBaseProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   children: ReactNode;
-  restoreScroll?: boolean;
-  /** Stable within the navigation entry. Pass explicitly for independently restorable areas. */
-  restorationId?: string;
   contentReady?: boolean;
   anchorSelector?: string;
   restorationAdapter?: ScrollRestorationAdapter;
   maxRestoreFrames?: number;
 }
+
+/**
+ * Restorable regions require an application-owned stable id so destroying and
+ * recreating the region can resolve the same navigation snapshot. Ordinary
+ * non-restorable ScrollAreas may use the generated internal id.
+ */
+export type ScrollAreaProps = ScrollAreaBaseProps & (
+  | { restoreScroll: true; restorationId: string }
+  | { restoreScroll?: false; restorationId?: string }
+);
 
 function assignRef<T>(ref: React.ForwardedRef<T>, value: T | null) {
   if (typeof ref === 'function') ref(value);

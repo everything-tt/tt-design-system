@@ -12,6 +12,10 @@ interface BasePageLayoutProps {
 
 export interface BrowsePageProps extends BasePageLayoutProps {}
 export interface DetailPageProps extends BasePageLayoutProps {}
+export interface SubpagePageProps extends BasePageLayoutProps {
+  /** Persistent peer-page navigation rendered immediately below the app header. */
+  tabs: ReactNode;
+}
 
 export function BrowsePage({ children, header, footer, className, id = 'page' }: BrowsePageProps) {
   return (
@@ -27,6 +31,21 @@ export function DetailPage({ children, header, footer, className, id = 'page' }:
   return (
     <AppShellPage id={id} className={cx('tt-detail-page', className)}>
       {header}
+      {children}
+      {footer}
+    </AppShellPage>
+  );
+}
+
+/**
+ * Detail-page shell for screens with peer subpages. The tabs stay pinned
+ * directly below the fixed app header while the document content scrolls.
+ */
+export function SubpagePage({ children, header, tabs, footer, className, id = 'page' }: SubpagePageProps) {
+  return (
+    <AppShellPage id={id} className={cx('tt-subpage-page', className)}>
+      {header}
+      <div className="tt-subpage-page__tabs">{tabs}</div>
       {children}
       {footer}
     </AppShellPage>

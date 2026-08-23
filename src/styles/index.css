@@ -8,6 +8,7 @@
 @import './variants.css';
 @import './rhythm.css';
 @import './app-shell.css';
+@import './page-layouts.css';
 @import './tab-bar.css';
 @import './browse-header.css';
 @import './drawer-polish.css';

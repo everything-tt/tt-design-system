@@ -42,7 +42,14 @@ export {
   type HeaderClearSize,
   type HeaderIconPosition,
 } from './components/AppShell';
-export { BrowsePage, DetailPage, type BrowsePageProps, type DetailPageProps } from './components/PageLayouts';
+export {
+  BrowsePage,
+  DetailPage,
+  SubpagePage,
+  type BrowsePageProps,
+  type DetailPageProps,
+  type SubpagePageProps,
+} from './components/PageLayouts';
 export { BrowseHeader, type BrowseHeaderAction, type BrowseHeaderProps } from './components/BrowseHeader';
 
 export { Stack, Inline, type StackProps, type InlineProps, type LayoutGap } from './components/Layout';

@@ -16,6 +16,8 @@ export interface SegmentedToggleProps<T extends string> {
   variant?: 'pill' | 'tab' | 'chip';
   /** Stretch to fill the container width (buttons flex:1). */
   full?: boolean;
+  /** Keep labels on one line and allow horizontal swipe/scroll when they overflow. */
+  scrollable?: boolean;
   className?: string;
 }
 
@@ -27,6 +29,7 @@ export function SegmentedToggle<T extends string>({
   ariaLabel,
   variant = 'pill',
   full = false,
+  scrollable = false,
   className,
 }: SegmentedToggleProps<T>) {
   const groupRef = useRef<HTMLDivElement | null>(null);
@@ -60,6 +63,7 @@ export function SegmentedToggle<T extends string>({
         'tt-segmented',
         `tt-segmented--${variant}`,
         full && 'tt-segmented--full',
+        scrollable && 'tt-segmented--scrollable',
         className,
       )}
       role="radiogroup"

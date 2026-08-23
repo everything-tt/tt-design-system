@@ -3,3 +3,11 @@
   background: transparent !important;
   color: inherit;
 }
+
+/* AppDrawer owns the only vertical scroll surface. Older consumers may still
+ * apply overflow and overscroll containment to their tt-drawer__content root;
+ * neutralise that nested scroller so touch gestures reach tt-drawer__scroll. */
+.tt-drawer__scroll > .tt-drawer__content {
+  overflow: visible !important;
+  overscroll-behavior: auto !important;
+}

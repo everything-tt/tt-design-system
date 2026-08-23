@@ -37,6 +37,8 @@ export interface PWAContextValue {
   showIosSheet: boolean;
   showUpdateSheet: boolean;
   install: () => Promise<void>;
+  /** Compatibility alias retained for consumers migrating from @tt-players/pwa. */
+  dismiss: () => void;
   dismissInstall: () => void;
   triggerInstallPrompt: () => void;
   updateApp: () => Promise<void>;
@@ -218,6 +220,7 @@ export function PWAProvider({
         showIosSheet: uiState.showIosSheet,
         showUpdateSheet: uiState.showUpdateSheet,
         install,
+        dismiss: dismissInstall,
         dismissInstall,
         triggerInstallPrompt,
         updateApp,

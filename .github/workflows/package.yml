@@ -5,6 +5,7 @@ on:
     paths:
       - 'src/**'
       - 'scripts/**'
+      - '.agents/skills/tt-design-system/**'
       - 'package.json'
       - 'tsconfig*.json'
       - 'pnpm-lock.yaml'
@@ -16,6 +17,7 @@ on:
     paths:
       - 'src/**'
       - 'scripts/**'
+      - '.agents/skills/tt-design-system/**'
       - 'package.json'
       - 'tsconfig*.json'
       - 'pnpm-lock.yaml'

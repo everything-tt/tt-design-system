@@ -46,6 +46,15 @@ mkdirSync(distRoot, { recursive: true });
 cpSync(join(packageRoot, 'src', 'styles'), join(distRoot, 'styles'), { recursive: true });
 copyCssAssets(join(packageRoot, 'src', 'components'), join(distRoot, 'components'));
 cpSync(join(packageRoot, 'README.md'), join(distRoot, 'README.md'));
+
+const skillSource = join(packageRoot, '.agents', 'skills', 'tt-design-system');
+if (!existsSync(join(skillSource, 'SKILL.md'))) {
+  throw new Error('Missing package-owned .agents/skills/tt-design-system/SKILL.md');
+}
+cpSync(skillSource, join(distRoot, 'agent-skills', 'tt-design-system'), { recursive: true });
+mkdirSync(join(distRoot, 'scripts'), { recursive: true });
+cpSync(join(packageRoot, 'scripts', 'install-agent-skill.mjs'), join(distRoot, 'scripts', 'install-agent-skill.mjs'));
+
 verifyCompiledCssImports(distRoot);
 
 const publishedPackage = {
@@ -56,6 +65,10 @@ const publishedPackage = {
   main: './index.js',
   module: './index.js',
   types: './index.d.ts',
+  bin: sourcePackage.bin,
+  scripts: {
+    postinstall: sourcePackage.scripts.postinstall,
+  },
   exports: {
     '.': {
       types: './index.d.ts',

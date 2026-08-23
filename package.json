@@ -8,12 +8,16 @@
   },
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "bin": {
+    "tt-design-system": "./scripts/install-agent-skill.mjs"
+  },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "pnpm run clean && tsc -p tsconfig.build.json && node ./scripts/prepare-package.mjs",
     "test": "vitest run",
     "pack:check": "pnpm run build && npm pack ./dist --dry-run",
     "smoke:consumer": "node ./scripts/consumer-smoke.mjs",
+    "postinstall": "node ./scripts/install-agent-skill.mjs --auto",
     "demo": "pnpm --filter @everything-tt/tt-players-design-system-demo dev",
     "demo:build": "pnpm --filter @everything-tt/tt-players-design-system-demo build",
     "demo:typecheck": "pnpm --filter @everything-tt/tt-players-design-system-demo typecheck"

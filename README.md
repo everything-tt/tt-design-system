@@ -75,6 +75,7 @@ Legacy components should still follow action semantics: buttons for in-app actio
 3. **No duplicate semantics.** Use `MatchRecordRow` for compact completed records; do not add a separate W/L badge beside its score. Use `OutcomeBadge` for form and summary indicators, and `Pill` for compact labels.
 4. **Token-first styling.** Components emit stable class hooks and rely on the package theme/tokens for visuals. Tailwind utilities are an internal implementation detail. Avoid inline styles except dimensions explicitly passed as props, such as drawer width or sheet height.
 5. **Accessible defaults.** Dialogs need `role="dialog"`, `aria-modal`, focus handling, and Escape close. Match scores require complete spoken labels. Status/error states need `role="status"` or `role="alert"`.
+6. **Do not style internals from product code.** App CSS may place component roots and use documented public variables, but should not target `.tt-*` descendant implementation classes. Add a bounded public prop/variable upstream when reusable configuration is missing.
 
 ## Import pattern
 
@@ -103,6 +104,32 @@ The consuming Vite app enables Tailwind v4 through `@tailwindcss/vite`. Prefligh
 
 Advanced compositions may import low-level owned primitives from `@everything-tt/tt-players-design-system/primitives`, but reusable branded UI belongs in this package rather than in each app.
 
+## Agent skill
+
+The published package includes a package-managed coding skill for best-practice design-system usage. When dependency lifecycle scripts are permitted, `postinstall` copies it to:
+
+```text
+.agents/skills/tt-design-system/
+```
+
+The installer is idempotent and only overwrites a directory that is already marked as package-managed. If the destination is unrelated or has local edits, automatic installation leaves it untouched and prints a warning.
+
+Some package managers or CI policies disable dependency lifecycle scripts. In that case install/update the same skill explicitly after adding the package:
+
+```sh
+pnpm exec tt-design-system install-skill
+```
+
+Or with npm:
+
+```sh
+npm exec tt-design-system -- install-skill
+```
+
+Use `--project-root <path>` when the command is run from outside the repository root. `--force` intentionally replaces an existing/local copy and should only be used when you want the package-managed version. Set `TT_DESIGN_SYSTEM_SKIP_SKILL_INSTALL=1` to disable automatic skill copying.
+
+The upstream source is `.agents/skills/tt-design-system` in this repository. Consumer copies should be treated as generated package content; improve the upstream skill when a new reusable practice is established.
+
 ## Showcase app
 
 The repository includes a checked-in Vite component lab at [`examples/showcase`](./examples/showcase). It consumes the package through the pnpm workspace, so local edits to `src/` are available without publishing a package version.
@@ -121,7 +148,7 @@ This is the standalone source repository for the shared TT design system. The pa
 ```json
 {
   "dependencies": {
-    "@everything-tt/tt-players-design-system": "^0.1.6"
+    "@everything-tt/tt-players-design-system": "^0.1.16"
   }
 }
 ```
@@ -143,6 +170,6 @@ import { AppButton } from '@everything-tt/tt-players-design-system';
 import '@everything-tt/tt-players-design-system/styles.css';
 ```
 
-The package workflow runs tests, builds the declaration and JavaScript artifacts, inspects the tarball, and verifies a Vite consumer before publishing. Pull requests run the checks only; pushes to `main` publish the version in `package.json`. Published versions are immutable, so every releasable package change must bump the version first.
+The package workflow runs tests, builds the declaration and JavaScript artifacts, inspects the tarball, and verifies a Vite consumer. Pull requests and pushes to `main` run validation; publishing an immutable version is an explicit workflow dispatch with the publish input enabled, so every releasable package change must bump the version first.
 
 The package uses shadcn source conventions and Radix behaviour beneath a stable TT semantic API. It intentionally has no application routing, feature data fetching, or product-state ownership.

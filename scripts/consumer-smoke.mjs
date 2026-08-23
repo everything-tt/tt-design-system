@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -108,6 +108,39 @@ createRoot(document.getElementById('root')!).render(<App />);
     ['install', '--ignore-scripts', '--registry=https://registry.npmjs.org'],
     { cwd: consumerRoot, stdio: 'inherit' },
   );
+
+  const installedPackageRoot = join(consumerRoot, 'node_modules', '@everything-tt', 'tt-players-design-system');
+  const installerPath = join(installedPackageRoot, 'scripts', 'install-agent-skill.mjs');
+  if (!existsSync(installerPath)) throw new Error('Packed package is missing the agent-skill installer.');
+
+  execFileSync(
+    process.execPath,
+    [installerPath, '--auto'],
+    {
+      cwd: installedPackageRoot,
+      env: {
+        ...process.env,
+        INIT_CWD: consumerRoot,
+        TT_DESIGN_SYSTEM_SKIP_SKILL_INSTALL: '',
+      },
+      stdio: 'inherit',
+    },
+  );
+
+  const installedSkillRoot = join(consumerRoot, '.agents', 'skills', 'tt-design-system');
+  const installedSkill = readFileSync(join(installedSkillRoot, 'SKILL.md'), 'utf8');
+  if (!installedSkill.includes('name: tt-design-system')) {
+    throw new Error('Packed package did not install the tt-design-system skill.');
+  }
+  const marker = JSON.parse(readFileSync(join(installedSkillRoot, '.tt-design-system-managed.json'), 'utf8'));
+  const installedPackage = JSON.parse(readFileSync(join(installedPackageRoot, 'package.json'), 'utf8'));
+  if (marker.version !== installedPackage.version || marker.managedBy !== installedPackage.name) {
+    throw new Error('Installed skill marker does not match the packed package.');
+  }
+
+  const binPath = join(consumerRoot, 'node_modules', '.bin', 'tt-design-system');
+  execFileSync(binPath, ['install-skill'], { cwd: consumerRoot, stdio: 'inherit' });
+
   execFileSync('npm', ['run', 'typecheck'], { cwd: consumerRoot, stdio: 'inherit' });
   execFileSync('npm', ['run', 'build'], { cwd: consumerRoot, stdio: 'inherit' });
 

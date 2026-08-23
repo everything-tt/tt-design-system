@@ -86,6 +86,16 @@ const publishedPackage = {
       import: './lib/utils.js',
       default: './lib/utils.js',
     },
+    './pwa': {
+      types: './pwa/index.d.ts',
+      import: './pwa/index.js',
+      default: './pwa/index.js',
+    },
+    './pwa/vite': {
+      types: './pwa/vite.d.ts',
+      import: './pwa/vite.js',
+      default: './pwa/vite.js',
+    },
     './package.json': './package.json',
   },
   sideEffects: ['**/*.css'],

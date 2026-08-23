@@ -1,5 +1,3 @@
-/// <reference types="vite-plugin-pwa/react" />
-
 import {
   createContext,
   useCallback,

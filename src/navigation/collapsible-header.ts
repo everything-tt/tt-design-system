@@ -8,18 +8,33 @@ export function getCollapsibleHeaderState(scrollTop: number, wasCompact: boolean
   return scrollTop >= COLLAPSE_THRESHOLD;
 }
 
+function readScrollTop(event?: Event): number {
+  const target = event?.target;
+
+  if (event?.type === 'scroll' && typeof HTMLElement !== 'undefined' && target instanceof HTMLElement) {
+    return Math.max(target.scrollTop, 0);
+  }
+
+  if (event?.type === 'touchmove' && typeof Element !== 'undefined' && target instanceof Element) {
+    const container = target.closest<HTMLElement>('[data-scroll-container]');
+    if (container) return Math.max(container.scrollTop, 0);
+  }
+
+  return window.scrollY
+    || document.scrollingElement?.scrollTop
+    || document.documentElement.scrollTop
+    || 0;
+}
+
 export function useCollapsibleHeader(): boolean {
   const [isCompact, setIsCompact] = useState(false);
 
   useEffect(() => {
     let frame = 0;
-    const update = () => {
+    const update = (event?: Event) => {
+      const scrollTop = readScrollTop(event);
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const scrollTop = window.scrollY
-          || document.scrollingElement?.scrollTop
-          || document.documentElement.scrollTop
-          || 0;
         setIsCompact((previous) => getCollapsibleHeaderState(scrollTop, previous));
       });
     };

@@ -1,0 +1,47 @@
+.tt-pressable {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tt-radius-md, var(--radius-md));
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--tt-motion-fast) var(--tt-ease-native),
+    transform var(--tt-motion-fast) var(--tt-ease-native),
+    opacity var(--tt-motion-fast) var(--tt-ease-native);
+}
+
+.tt-pressable[data-state='pressed'] {
+  background: var(--tt-surface-accent, var(--accent-subtle));
+}
+
+.tt-pressable:active:not(:disabled) {
+  transform: scale(.97);
+}
+
+.tt-pressable:disabled,
+.tt-pressable[data-state='disabled'] {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+@media (hover: hover) {
+  .tt-pressable:hover:not(:disabled) {
+    background: var(--tt-surface-subtle, var(--surface-subtle));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-pressable { transition: none; }
+  .tt-pressable:active:not(:disabled) { transform: none; }
+}

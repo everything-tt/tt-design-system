@@ -1,8 +1,15 @@
 import React, { MouseEventHandler, ReactNode } from 'react';
 import { cx } from '../utils/cx';
+import {
+  ScrollRestorationRevealScope,
+  useScrollRestorationRef,
+  useScrollRestorationRevealRegistry,
+  type ScrollRestorationAdapter,
+} from '../navigation/scroll-restoration';
 
 export type HeaderIconPosition = 1 | 2 | 3 | 4;
 export type HeaderClearSize = 'small' | 'medium' | 'large';
+export type AppViewportMode = 'document' | 'contained';
 
 export interface AppHeaderAction {
   iconClassName: string;
@@ -17,12 +24,23 @@ export interface AppShellPageProps {
   children: ReactNode;
   className?: string;
   id?: string;
+  /** `document` preserves the legacy window scroller. `contained` opts into the 100dvh owned viewport. */
+  viewport?: AppViewportMode;
 }
 
 export interface AppPageContentProps {
   children: ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  /** Own page scrolling inside a contained app shell. Defaults to true when restoreScroll is enabled. */
+  scrollable?: boolean;
+  /** Restore this page container from navigation history when a provider is present. */
+  restoreScroll?: boolean;
+  restorationId?: string;
+  contentReady?: boolean;
+  anchorSelector?: string;
+  restorationAdapter?: ScrollRestorationAdapter;
+  maxRestoreFrames?: number;
 }
 
 export interface AppHeaderSpacerProps {
@@ -31,7 +49,6 @@ export interface AppHeaderSpacerProps {
 
 export interface AppHeaderProps {
   title?: ReactNode;
-  /** When true, render the title as an <h1> so the route exposes a page landmark heading. */
   heading?: boolean;
   onTitleClick?: MouseEventHandler<HTMLButtonElement>;
   leftAction?: AppHeaderAction;
@@ -44,6 +61,11 @@ export interface AppHeaderProps {
   ref?: React.Ref<HTMLElement>;
 }
 
+function assignRef<T>(ref: React.ForwardedRef<T>, value: T | null) {
+  if (typeof ref === 'function') ref(value);
+  else if (ref) ref.current = value;
+}
+
 export function AppHeaderActionLink({ iconClassName, onClick, position, ariaLabel, className, badgeContent }: AppHeaderAction) {
   return (
     <button
@@ -51,6 +73,7 @@ export function AppHeaderActionLink({ iconClassName, onClick, position, ariaLabe
       className={cx('header-icon', `header-icon-${position}`, 'tt-app-header__action', className)}
       aria-label={ariaLabel}
       onClick={onClick}
+      data-pressable="true"
     >
       <i className={iconClassName} aria-hidden="true" />
       {badgeContent}
@@ -58,21 +81,74 @@ export function AppHeaderActionLink({ iconClassName, onClick, position, ariaLabe
   );
 }
 
-export function AppShellPage({ children, className, id = 'page' }: AppShellPageProps) {
-  return <div id={id} className={cx('app-shell-page', 'tt-app-shell', className)}>{children}</div>;
+export function AppShellPage({ children, className, id = 'page', viewport = 'document' }: AppShellPageProps) {
+  return (
+    <div
+      id={id}
+      className={cx(
+        'app-shell-page',
+        'tt-app-shell',
+        viewport === 'contained' && 'tt-app-shell--contained',
+        className,
+      )}
+      data-app-ui="true"
+      data-app-viewport={viewport}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function AppHeaderSpacer({ size = 'medium' }: AppHeaderSpacerProps) {
   return <div className={cx(`header-clear-${size}`, 'tt-app-header-spacer')} aria-hidden="true" />;
 }
 
-export function AppPageContent({ children, className, style }: AppPageContentProps) {
+export const AppPageContent = React.forwardRef<HTMLElement, AppPageContentProps>(({
+  children,
+  className,
+  style,
+  scrollable,
+  restoreScroll = false,
+  restorationId = 'page',
+  contentReady = true,
+  anchorSelector,
+  restorationAdapter,
+  maxRestoreFrames,
+}, forwardedRef) => {
+  const ownsScroll = scrollable ?? restoreScroll;
+  const revealRegistry = useScrollRestorationRevealRegistry(restorationAdapter);
+  const restorationRef = useScrollRestorationRef<HTMLElement>({
+    restorationId,
+    enabled: restoreScroll,
+    contentReady,
+    anchorSelector,
+    adapter: revealRegistry.adapter,
+    maxRestoreFrames,
+  });
+
   return (
-    <main className={cx('page-content', 'tt-page-content', className)} style={style}>
-      {children}
+    <main
+      ref={(node) => {
+        restorationRef(node);
+        assignRef(forwardedRef, node);
+      }}
+      className={cx(
+        'page-content',
+        'tt-page-content',
+        ownsScroll && 'tt-page-content--scrollable',
+        className,
+      )}
+      style={style}
+      data-scroll-container={ownsScroll ? restorationId : undefined}
+    >
+      <ScrollRestorationRevealScope register={revealRegistry.register}>
+        {children}
+      </ScrollRestorationRevealScope>
     </main>
   );
-}
+});
+
+AppPageContent.displayName = 'AppPageContent';
 
 export const AppHeader = React.forwardRef<HTMLElement, AppHeaderProps>(({
   title,
@@ -98,7 +174,7 @@ export const AppHeader = React.forwardRef<HTMLElement, AppHeaderProps>(({
       ) : (
         <>
           {onTitleClick ? (
-            <button type="button" className="header-title tt-app-header__title" onClick={onTitleClick}>{title}</button>
+            <button type="button" className="header-title tt-app-header__title" onClick={onTitleClick} data-pressable="true">{title}</button>
           ) : heading ? (
             <h1 className="header-title tt-app-header__title">{title}</h1>
           ) : (

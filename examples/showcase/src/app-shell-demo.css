@@ -147,10 +147,15 @@
   z-index: 1200;
   right: max(12px, env(safe-area-inset-right));
   bottom: max(14px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: calc(100vw - 24px);
 }
 
 .showcase-root-switch button {
-  min-height: 42px;
+  min-height: 44px;
   border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
   border-radius: 999px;
   padding: 0 14px;
@@ -160,6 +165,7 @@
   font: inherit;
   font-size: 0.78rem;
   font-weight: 800;
+  white-space: nowrap;
   cursor: pointer;
 }
 

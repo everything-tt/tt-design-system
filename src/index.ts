@@ -3,6 +3,28 @@ export { ThemeProvider, useTheme, type ThemeContextType, type ThemeProviderProps
 
 // Navigation behaviour
 export { getCollapsibleHeaderState, useCollapsibleHeader } from './navigation/collapsible-header';
+export {
+  ScrollRestorationController,
+  ScrollRestorationProvider,
+  captureScrollSnapshot,
+  getNavigationRestorationAction,
+  getRestorationDecision,
+  getRestorationStorageKey,
+  restoreScrollSnapshot,
+  useScrollRestorationRef,
+  useWindowScrollRestoration,
+  type NavigationRestorationAction,
+  type NavigationType,
+  type RestorationDecision,
+  type RestoreAttemptResult,
+  type ScrollAnchorSnapshot,
+  type ScrollRestorationAdapter,
+  type ScrollRestorationControllerOptions,
+  type ScrollRestorationOptions,
+  type ScrollRestorationProviderProps,
+  type ScrollRestorationTarget,
+  type ScrollSnapshot,
+} from './navigation/scroll-restoration';
 
 // Components
 export {
@@ -16,6 +38,7 @@ export {
   type AppHeaderSpacerProps,
   type AppPageContentProps,
   type AppShellPageProps,
+  type AppViewportMode,
   type HeaderClearSize,
   type HeaderIconPosition,
 } from './components/AppShell';
@@ -29,6 +52,12 @@ export { EntityHero, type EntityHeroProps } from './components/EntityHero';
 export { MetricGrid, type MetricGridProps, type MetricItem } from './components/MetricGrid';
 export { FilterBar, type FilterBarProps } from './components/FilterBar';
 export { DesignList, DesignAvatar, type DesignListProps, type DesignListDensity, type DesignAvatarProps } from './components/DesignList';
+export { ScrollArea, ScrollAnchor, type ScrollAreaProps, type ScrollAnchorProps } from './components/ScrollArea';
+export { SelectableText, type SelectableTextProps } from './components/SelectableText';
+export { Pressable, type PressableProps } from './components/Pressable';
+export { IconButton, type IconButtonProps } from './components/IconButton';
+export { AppInput, type AppInputProps } from './components/AppInput';
+export { useOverlayBackHandler } from './components/overlay-back';
 
 export {
   AppCard,

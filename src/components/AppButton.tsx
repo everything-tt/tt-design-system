@@ -77,6 +77,7 @@ export function AppButtonLink({
       <a
         href={href}
         className={appButtonClassName({ tone, size, rounded, fontWeight, full, iconOnly, className })}
+        data-pressable="true"
         {...props}
       >
         {children}
@@ -118,6 +119,7 @@ export function AppButton({
       className={appButtonClassName({ tone, size, rounded, fontWeight, full, iconOnly, className })}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
+      data-pressable="true"
       {...props}
     >
       {loading ? <LoaderCircle className="tt-btn__spinner" aria-hidden="true" /> : null}

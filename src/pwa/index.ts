@@ -12,6 +12,14 @@ export {
   type PWAProviderProps,
 } from './runtime';
 export {
+  PWAInstallPrompt,
+  PWAPrompts,
+  PWAUpdatePrompt,
+  type PWAInstallPromptProps,
+  type PWAPromptsProps,
+  type PWAUpdatePromptProps,
+} from './prompts';
+export {
   createInitialPWAUiState,
   pwaUiReducer,
   runPWAUpdate,

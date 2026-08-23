@@ -1,0 +1,32 @@
+.tt-pwa-sheet__content {
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.tt-pwa-sheet__icon {
+  width: 90px;
+  height: 90px;
+  border-radius: 22%;
+  object-fit: cover;
+}
+
+.tt-pwa-sheet__copy {
+  max-width: 34rem;
+  color: var(--tt-color-text-secondary, inherit);
+}
+
+.tt-pwa-sheet__copy > :first-child {
+  margin-top: 0;
+}
+
+.tt-pwa-sheet__copy > :last-child {
+  margin-bottom: 0;
+}
+
+.tt-pwa-sheet__actions {
+  display: grid;
+  width: min(100%, 30rem);
+  gap: 0.5rem;
+}

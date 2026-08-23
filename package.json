@@ -1,6 +1,6 @@
 {
   "name": "@everything-tt/tt-players-design-system",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "type": "module",
   "packageManager": "pnpm@10.24.0",
   "engines": {
@@ -38,7 +38,9 @@
     ".": "./src/index.ts",
     "./primitives": "./src/components/ui/index.ts",
     "./styles.css": "./src/styles/index.css",
-    "./utils": "./src/lib/utils.ts"
+    "./utils": "./src/lib/utils.ts",
+    "./pwa": "./src/pwa/index.ts",
+    "./pwa/vite": "./src/pwa/vite.ts"
   },
   "sideEffects": [
     "**/*.css"

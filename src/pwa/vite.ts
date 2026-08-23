@@ -1,3 +1,5 @@
+import type { VitePWA } from 'vite-plugin-pwa';
+
 export const DEFAULT_PWA_ASSETS = [
   'favicon.ico',
   'apple-touch-icon.png',
@@ -8,29 +10,17 @@ export const DEFAULT_PWA_GLOB_PATTERNS = [
   '**/*.{js,css,html,ico,png,svg,woff,woff2}',
 ] as const;
 
-export interface SharedPWAWorkboxOptions {
-  globPatterns?: string[];
-}
-
-export interface SharedPWAPluginOptions {
-  registerType?: 'prompt' | 'autoUpdate';
-  includeAssets?: string[];
-  workbox?: SharedPWAWorkboxOptions;
-}
+export type PWAPluginOptions = NonNullable<Parameters<typeof VitePWA>[0]>;
 
 /**
- * Applies the TT application defaults while preserving every app-specific
- * vite-plugin-pwa option inferred on the input object.
+ * Applies the TT application defaults while preserving vite-plugin-pwa's
+ * contextual typing for app-owned options such as the web manifest.
  *
  * Usage: VitePWA(withPWADefaults({ manifest: { ... } }))
  */
-export function withPWADefaults<T extends SharedPWAPluginOptions>(
-  options: T,
-): T & {
-  registerType: 'prompt' | 'autoUpdate';
-  includeAssets: string[];
-  workbox: SharedPWAWorkboxOptions;
-} {
+export function withPWADefaults(
+  options: PWAPluginOptions = {},
+): PWAPluginOptions {
   const {
     registerType = 'prompt',
     includeAssets = [...DEFAULT_PWA_ASSETS],
@@ -46,9 +36,5 @@ export function withPWADefaults<T extends SharedPWAPluginOptions>(
       globPatterns: [...DEFAULT_PWA_GLOB_PATTERNS],
       ...(workbox ?? {}),
     },
-  } as T & {
-    registerType: 'prompt' | 'autoUpdate';
-    includeAssets: string[];
-    workbox: SharedPWAWorkboxOptions;
   };
 }

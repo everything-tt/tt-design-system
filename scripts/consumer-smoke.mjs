@@ -29,6 +29,7 @@ try {
       '@everything-tt/tt-players-design-system': `file:${tarballPath}`,
       react: '^18.3.1',
       'react-dom': '^18.3.1',
+      'workbox-window': '^7.4.0',
     },
     devDependencies: {
       '@tailwindcss/vite': '^4.1.11',
@@ -38,6 +39,7 @@ try {
       tailwindcss: '^4.1.11',
       typescript: '^5.7.3',
       vite: '^6.2.0',
+      'vite-plugin-pwa': '^1.2.0',
     },
   }, null, 2)}\n`);
 
@@ -57,8 +59,23 @@ try {
   writeFileSync(join(consumerRoot, 'vite.config.ts'), `import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
+import { withPWADefaults } from '@everything-tt/tt-players-design-system/pwa/vite';
 
-export default defineConfig({ plugins: [tailwindcss(), react()] });
+export default defineConfig({
+  plugins: [
+    tailwindcss(),
+    react(),
+    VitePWA(withPWADefaults({
+      manifest: {
+        name: 'PWA Consumer Smoke',
+        short_name: 'Smoke',
+        display: 'standalone',
+        theme_color: '#17382f',
+      },
+    })),
+  ],
+});
 `);
 
   mkdirSync(join(consumerRoot, 'src'));
@@ -75,7 +92,22 @@ import {
   OutcomeBadge,
   Pill,
 } from '@everything-tt/tt-players-design-system';
+import {
+  PWAInstallPrompt,
+  PWAProvider,
+  usePWA,
+} from '@everything-tt/tt-players-design-system/pwa';
 import '@everything-tt/tt-players-design-system/styles.css';
+
+function PWACompatibilityProbe() {
+  const { dismiss, dismissInstall } = usePWA();
+  return (
+    <div>
+      <button onClick={dismiss}>Legacy dismiss</button>
+      <button onClick={dismissInstall}>Named dismiss</button>
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -94,11 +126,17 @@ function App() {
         activeItemId="home"
         onItemClick={() => undefined}
       />
+      <PWAInstallPrompt appName="Smoke App" />
+      <PWACompatibilityProbe />
     </main>
   );
 }
 
-createRoot(document.getElementById('root')!).render(<App />);
+createRoot(document.getElementById('root')!).render(
+  <PWAProvider>
+    <App />
+  </PWAProvider>,
+);
 `);
 
   writeFileSync(join(consumerRoot, 'index.html'), '<div id="root"></div><script type="module" src="/src/main.tsx"></script>\n');
@@ -159,6 +197,7 @@ createRoot(document.getElementById('root')!).render(<App />);
     '.tt-outcome',
     '.tt-entity-hero',
     '.tt-tab-bar',
+    '.tt-pwa-sheet__content',
   ]) {
     if (!css.includes(selector)) {
       throw new Error(`Packed consumer CSS is missing ${selector}`);

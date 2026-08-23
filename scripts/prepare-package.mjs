@@ -100,6 +100,7 @@ const publishedPackage = {
   },
   sideEffects: ['**/*.css'],
   peerDependencies: sourcePackage.peerDependencies,
+  peerDependenciesMeta: sourcePackage.peerDependenciesMeta,
   dependencies: sourcePackage.dependencies,
   engines: {
     node: '>=18.0.0',

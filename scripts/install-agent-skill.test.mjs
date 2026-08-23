@@ -66,4 +66,18 @@ describe('agent skill installer', () => {
     expect(result.status).toBe('conflict');
     expect(readFileSync(join(destination, 'SKILL.md'), 'utf8')).toBe('# custom skill\n');
   });
+
+  it('treats a marker without a verifiable content hash as a conflict', () => {
+    const projectRoot = temporaryProject();
+    installAgentSkill({ projectRoot, packageRoot: defaultPackageRoot });
+    const destination = join(projectRoot, '.agents', 'skills', SKILL_NAME);
+    const markerPath = join(destination, MANAGED_MARKER);
+    const marker = JSON.parse(readFileSync(markerPath, 'utf8'));
+    delete marker.contentHash;
+    writeFileSync(markerPath, `${JSON.stringify(marker, null, 2)}\n`);
+
+    const result = installAgentSkill({ projectRoot, packageRoot: defaultPackageRoot });
+    expect(result.status).toBe('conflict');
+    expect(readFileSync(join(destination, 'SKILL.md'), 'utf8')).toContain('name: tt-design-system');
+  });
 });

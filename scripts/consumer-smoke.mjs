@@ -103,41 +103,43 @@ createRoot(document.getElementById('root')!).render(<App />);
 
   writeFileSync(join(consumerRoot, 'index.html'), '<div id="root"></div><script type="module" src="/src/main.tsx"></script>\n');
 
+  // Keep dependency lifecycle scripts enabled here. This is the acceptance test
+  // for the published package's actual postinstall contract, not only the helper.
   execFileSync(
     'npm',
-    ['install', '--ignore-scripts', '--registry=https://registry.npmjs.org'],
-    { cwd: consumerRoot, stdio: 'inherit' },
-  );
-
-  const installedPackageRoot = join(consumerRoot, 'node_modules', '@everything-tt', 'tt-players-design-system');
-  const installerPath = join(installedPackageRoot, 'scripts', 'install-agent-skill.mjs');
-  if (!existsSync(installerPath)) throw new Error('Packed package is missing the agent-skill installer.');
-
-  execFileSync(
-    process.execPath,
-    [installerPath, '--auto'],
+    ['install', '--registry=https://registry.npmjs.org'],
     {
-      cwd: installedPackageRoot,
+      cwd: consumerRoot,
       env: {
         ...process.env,
-        INIT_CWD: consumerRoot,
         TT_DESIGN_SYSTEM_SKIP_SKILL_INSTALL: '',
       },
       stdio: 'inherit',
     },
   );
 
+  const installedPackageRoot = join(consumerRoot, 'node_modules', '@everything-tt', 'tt-players-design-system');
+  const installerPath = join(installedPackageRoot, 'scripts', 'install-agent-skill.mjs');
+  if (!existsSync(installerPath)) throw new Error('Packed package is missing the agent-skill installer.');
+
   const installedSkillRoot = join(consumerRoot, '.agents', 'skills', 'tt-design-system');
+  if (!existsSync(join(installedSkillRoot, 'SKILL.md'))) {
+    throw new Error('Packed package postinstall did not create .agents/skills/tt-design-system.');
+  }
   const installedSkill = readFileSync(join(installedSkillRoot, 'SKILL.md'), 'utf8');
   if (!installedSkill.includes('name: tt-design-system')) {
-    throw new Error('Packed package did not install the tt-design-system skill.');
+    throw new Error('Packed package installed an invalid tt-design-system skill.');
   }
   const marker = JSON.parse(readFileSync(join(installedSkillRoot, '.tt-design-system-managed.json'), 'utf8'));
   const installedPackage = JSON.parse(readFileSync(join(installedPackageRoot, 'package.json'), 'utf8'));
   if (marker.version !== installedPackage.version || marker.managedBy !== installedPackage.name) {
     throw new Error('Installed skill marker does not match the packed package.');
   }
+  if (!/^[a-f0-9]{64}$/.test(marker.contentHash ?? '')) {
+    throw new Error('Installed skill marker is missing its package content hash.');
+  }
 
+  // The manual fallback must remain safe and idempotent even after postinstall.
   const binPath = join(consumerRoot, 'node_modules', '.bin', 'tt-design-system');
   execFileSync(binPath, ['install-skill'], { cwd: consumerRoot, stdio: 'inherit' });
 

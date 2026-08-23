@@ -98,7 +98,9 @@ function isManagedMarker(value) {
   return value
     && value.managedBy === PACKAGE_NAME
     && value.skill === SKILL_NAME
-    && typeof value.version === 'string';
+    && typeof value.version === 'string'
+    && typeof value.contentHash === 'string'
+    && /^[a-f0-9]{64}$/.test(value.contentHash);
 }
 
 export function installAgentSkill({
@@ -132,13 +134,13 @@ export function installAgentSkill({
         return {
           status: 'conflict',
           destination,
-          reason: `Existing ${destination} is not package-managed; refusing to overwrite it.`,
+          reason: `Existing ${destination} is not verifiably package-managed; refusing to overwrite it.`,
         };
       }
       status = 'updated';
     } else {
       const currentHash = hashSkillDirectory(destination);
-      if (marker.contentHash && marker.contentHash !== currentHash && !force) {
+      if (marker.contentHash !== currentHash && !force) {
         return {
           status: 'conflict',
           destination,
@@ -174,7 +176,11 @@ export function installAgentSkill({
 function valueAfter(args, flag) {
   const index = args.indexOf(flag);
   if (index < 0) return undefined;
-  return args[index + 1];
+  const value = args[index + 1];
+  if (!value || value.startsWith('-')) {
+    throw new Error(`${flag} requires a path value.`);
+  }
+  return value;
 }
 
 function printHelp() {
@@ -184,7 +190,7 @@ function printHelp() {
 async function main() {
   const args = process.argv.slice(2);
   const auto = args.includes('--auto');
-  const command = args.find((arg) => !arg.startsWith('-'));
+  const command = auto ? undefined : args[0];
 
   if (!auto && (!command || command === 'help' || args.includes('--help') || args.includes('-h'))) {
     printHelp();
@@ -199,16 +205,16 @@ async function main() {
 
   if (auto && truthy(process.env.TT_DESIGN_SYSTEM_SKIP_SKILL_INSTALL)) return;
 
-  const explicitRoot = valueAfter(args, '--project-root');
-  const projectRoot = explicitRoot
-    ? resolve(explicitRoot)
-    : auto
-      ? resolveAutoProjectRoot(process.env)
-      : process.cwd();
-
-  if (!projectRoot) return;
-
   try {
+    const explicitRoot = valueAfter(args, '--project-root');
+    const projectRoot = explicitRoot
+      ? resolve(explicitRoot)
+      : auto
+        ? resolveAutoProjectRoot(process.env)
+        : process.cwd();
+
+    if (!projectRoot) return;
+
     const result = installAgentSkill({
       projectRoot,
       force: args.includes('--force'),

@@ -1,0 +1,47 @@
+/* AppKit's legacy header-clear classes reserve space with padding. AppHeaderSpacer
+ * owns the spacer geometry in the design system, so neutralise that extra padding
+ * to keep content and subpage navigation flush with the toolbar. */
+.tt-app-header-spacer {
+  box-sizing: border-box;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Peer-page navigation remains visible immediately below the fixed toolbar while
+ * the document beneath it scrolls. Consumers may override the offset for a custom
+ * header through --tt-subpage-tabs-top. */
+.tt-subpage-page__tabs {
+  position: sticky;
+  top: var(--tt-subpage-tabs-top, calc(var(--tt-header-height) + env(safe-area-inset-top)));
+  z-index: 95;
+  width: 100%;
+  margin: 0;
+  background: var(--tt-surface-overlay);
+  backdrop-filter: blur(18px) saturate(1.12);
+  -webkit-backdrop-filter: blur(18px) saturate(1.12);
+}
+
+/* Scrollable segmented navigation fills available width when it can, but never
+ * compresses labels onto multiple lines. Extra tabs overflow horizontally and
+ * remain swipeable without exposing a browser scrollbar. */
+.tt-segmented--scrollable {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tt-segmented--scrollable::-webkit-scrollbar {
+  display: none;
+}
+
+.tt-segmented--scrollable .tt-segmented__btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.tt-segmented--scrollable.tt-segmented--full .tt-segmented__btn {
+  flex: 1 0 auto;
+}

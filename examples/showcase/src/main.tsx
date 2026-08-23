@@ -5,15 +5,18 @@ import '@everything-tt/tt-players-design-system/styles.css';
 import './showcase.css';
 import './app-shell-demo.css';
 import './mobile-pwa-demo.css';
+import './agent-skill-demo.css';
 import { App } from './App';
+import { AgentSkillDemo } from './AgentSkillDemo';
 import { AppShellDemo } from './AppShellDemo';
 import { MobilePwaDemo } from './MobilePwaDemo';
 
-type ShowcaseMode = 'shell' | 'lab' | 'mobile';
+type ShowcaseMode = 'shell' | 'lab' | 'mobile' | 'skill';
 
 function getModeFromHash(): ShowcaseMode {
   if (window.location.hash === '#lab') return 'lab';
   if (window.location.hash === '#mobile') return 'mobile';
+  if (window.location.hash === '#skill') return 'skill';
   return 'shell';
 }
 
@@ -41,8 +44,17 @@ function ShowcaseRoot() {
     setMode('mobile');
   };
 
+  const openSkill = () => {
+    window.location.hash = 'skill';
+    setMode('skill');
+  };
+
   if (mode === 'mobile') {
-    return <MobilePwaDemo onOpenShell={openShell} onOpenLab={openLab} />;
+    return <MobilePwaDemo onOpenShell={openShell} onOpenLab={openLab} onOpenSkill={openSkill} />;
+  }
+
+  if (mode === 'skill') {
+    return <AgentSkillDemo onOpenShell={openShell} onOpenLab={openLab} onOpenMobile={openMobile} />;
   }
 
   if (mode === 'lab') {
@@ -50,7 +62,8 @@ function ShowcaseRoot() {
       <>
         <div className="showcase-root-switch" aria-label="Showcase views">
           <button type="button" onClick={openShell}>App shell</button>
-          <button type="button" onClick={openMobile}>Mobile / PWA demo</button>
+          <button type="button" onClick={openMobile}>Mobile / PWA</button>
+          <button type="button" onClick={openSkill}>Agent skill</button>
         </div>
         <App />
       </>
@@ -60,7 +73,8 @@ function ShowcaseRoot() {
   return (
     <>
       <div className="showcase-root-switch" aria-label="Showcase views">
-        <button type="button" onClick={openMobile}>Mobile / PWA demo</button>
+        <button type="button" onClick={openMobile}>Mobile / PWA</button>
+        <button type="button" onClick={openSkill}>Agent skill</button>
       </div>
       <AppShellDemo onOpenLab={openLab} />
     </>

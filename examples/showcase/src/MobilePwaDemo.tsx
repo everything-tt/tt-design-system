@@ -26,6 +26,7 @@ type DemoScreen =
 interface MobilePwaDemoProps {
   onOpenShell: () => void;
   onOpenLab: () => void;
+  onOpenSkill: () => void;
 }
 
 const players = Array.from({ length: 80 }, (_, index) => ({
@@ -36,7 +37,7 @@ const players = Array.from({ length: 80 }, (_, index) => ({
 
 const notes = Array.from({ length: 24 }, (_, index) => `Operator note ${index + 1} · nested scroll item`);
 
-export function MobilePwaDemo({ onOpenShell, onOpenLab }: MobilePwaDemoProps) {
+export function MobilePwaDemo({ onOpenShell, onOpenLab, onOpenSkill }: MobilePwaDemoProps) {
   const [screen, setScreen] = useState<DemoScreen>({ kind: 'list', key: 'players-list' });
   const [navigationType, setNavigationType] = useState<NavigationType>('PUSH');
   const [contentReady, setContentReady] = useState(true);
@@ -210,6 +211,7 @@ export function MobilePwaDemo({ onOpenShell, onOpenLab }: MobilePwaDemoProps) {
         <div className="showcase-root-switch" aria-label="Showcase views">
           <button type="button" onClick={onOpenShell}>App shell</button>
           <button type="button" onClick={onOpenLab}>Component lab</button>
+          <button type="button" onClick={onOpenSkill}>Agent skill</button>
         </div>
       </AppShellPage>
     </ScrollRestorationProvider>

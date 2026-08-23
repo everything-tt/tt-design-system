@@ -41,7 +41,6 @@ export function AgentSkillDemo({ onOpenShell, onOpenLab, onOpenMobile }: AgentSk
           eyebrow="PACKAGE-MANAGED AGENT SKILL"
           title="The design system ships its own usage playbook."
           subtitle="Installing the package gives coding agents the same component-selection, ownership, mobile/PWA, and navigation-restoration rules that maintainers use when reviewing TT applications."
-          meta={<Pill tone="success">Ships with the package</Pill>}
           highlights={(
             <MetricGrid
               ariaLabel="Agent skill package contract"
@@ -58,6 +57,10 @@ export function AgentSkillDemo({ onOpenShell, onOpenLab, onOpenMobile }: AgentSk
           highlightsSeparated
           className="agent-skill-demo__hero"
         />
+        <div className="agent-skill-demo__status">
+          <Pill tone="success">Ships with the package</Pill>
+          <span>Installed into the consumer project, maintained upstream.</span>
+        </div>
 
         <SectionHeader
           title="Install contract"

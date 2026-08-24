@@ -18,6 +18,8 @@ export interface AppHeaderAction {
   ariaLabel: string;
   className?: string;
   badgeContent?: ReactNode;
+  /** Optional edge space reserved for this action when laying out the header title. */
+  titleInset?: number;
 }
 
 export interface AppShellPageProps {
@@ -150,6 +152,21 @@ export const AppPageContent = React.forwardRef<HTMLElement, AppPageContentProps>
 
 AppPageContent.displayName = 'AppPageContent';
 
+function titleInsetForActions(actions: AppHeaderAction[]) {
+  let left = 15;
+  let right = 15;
+
+  actions.forEach((action) => {
+    const defaultInset = action.position === 1 || action.position === 4 ? 55 : 100;
+    const inset = action.titleInset ?? defaultInset;
+
+    if (action.position <= 2) left = Math.max(left, inset);
+    else right = Math.max(right, inset);
+  });
+
+  return { left, right };
+}
+
 export const AppHeader = React.forwardRef<HTMLElement, AppHeaderProps>(({
   title,
   heading = false,
@@ -162,6 +179,21 @@ export const AppHeader = React.forwardRef<HTMLElement, AppHeaderProps>(({
   style,
   ariaLabel = 'Application header',
 }, ref) => {
+  const renderedActions = [leftAction, rightAction, ...actions].filter(
+    (action): action is AppHeaderAction => Boolean(action),
+  );
+  const titleInset = titleInsetForActions(renderedActions);
+  const titleStyle: React.CSSProperties = {
+    left: titleInset.left,
+    right: titleInset.right,
+    width: 'auto',
+    marginLeft: 0,
+    textAlign: 'left',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  };
+
   return (
     <header
       ref={ref}
@@ -174,11 +206,11 @@ export const AppHeader = React.forwardRef<HTMLElement, AppHeaderProps>(({
       ) : (
         <>
           {onTitleClick ? (
-            <button type="button" className="header-title tt-app-header__title" onClick={onTitleClick} data-pressable="true">{title}</button>
+            <button type="button" className="header-title tt-app-header__title" style={titleStyle} onClick={onTitleClick} data-pressable="true">{title}</button>
           ) : heading ? (
-            <h1 className="header-title tt-app-header__title">{title}</h1>
+            <h1 className="header-title tt-app-header__title" style={titleStyle}>{title}</h1>
           ) : (
-            <span className="header-title tt-app-header__title">{title}</span>
+            <span className="header-title tt-app-header__title" style={titleStyle}>{title}</span>
           )}
           {leftAction ? <AppHeaderActionLink {...leftAction} /> : null}
           {rightAction ? <AppHeaderActionLink {...rightAction} /> : null}

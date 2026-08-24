@@ -13,6 +13,7 @@ export interface MetricGridProps {
   items?: MetricItem[];
   density?: 'compact' | 'standard';
   columns?: 2 | 3 | 4;
+  singleRow?: boolean;
   separators?: boolean;
   valueSize?: 'compact' | 'standard' | 'prominent';
   labelStyle?: 'standard' | 'eyebrow';
@@ -25,6 +26,7 @@ export function MetricGrid({
   items,
   density = 'standard',
   columns,
+  singleRow = false,
   separators = false,
   valueSize = 'standard',
   labelStyle = 'standard',
@@ -39,6 +41,7 @@ export function MetricGrid({
         'tt-metric-grid',
         `tt-metric-grid--${density}`,
         `tt-metric-grid--cols-${resolvedColumns}`,
+        singleRow && 'tt-metric-grid--single-row',
         separators && 'tt-metric-grid--separated',
         `tt-metric-grid--value-${valueSize}`,
         `tt-metric-grid--label-${labelStyle}`,

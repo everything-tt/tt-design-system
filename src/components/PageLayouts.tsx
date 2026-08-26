@@ -43,7 +43,7 @@ export function DetailPage({ children, header, footer, className, id = 'page' }:
  */
 export function SubpagePage({ children, header, tabs, footer, className, id = 'page' }: SubpagePageProps) {
   return (
-    <AppShellPage id={id} className={cx('tt-subpage-page', className)}>
+    <AppShellPage id={id} className={cx('tt-detail-page', 'tt-subpage-page', className)}>
       {header}
       <div className="tt-subpage-page__tabs">{tabs}</div>
       {children}

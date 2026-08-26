@@ -13,7 +13,7 @@ describe('SubpagePage navigation contract', () => {
       </SubpagePage>,
     );
 
-    expect(markup).toContain('tt-subpage-page');
+    expect(markup).toContain('tt-detail-page tt-subpage-page');
     expect(markup).toContain('<div class="tt-subpage-page__tabs"><nav>Sections</nav></div>');
     expect(markup.indexOf('Toolbar')).toBeLessThan(markup.indexOf('Sections'));
     expect(markup.indexOf('Sections')).toBeLessThan(markup.indexOf('Profile'));

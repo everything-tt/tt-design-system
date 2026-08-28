@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createInitialPWAUiState,
+  getPWAUpdateAction,
   pwaUiReducer,
   runPWAUpdate,
 } from './runtime-state';
@@ -30,6 +31,45 @@ describe('PWA runtime state', () => {
     const update = pwaUiReducer(createInitialPWAUiState(false), { type: 'update-available' });
     expect(update.showUpdateSheet).toBe(true);
     expect(pwaUiReducer(update, { type: 'dismiss-update' }).showUpdateSheet).toBe(false);
+  });
+});
+
+describe('getPWAUpdateAction', () => {
+  it('always prompts when prompt strategy is selected', () => {
+    expect(getPWAUpdateAction({
+      strategy: 'prompt',
+      canReload: true,
+      unsafeBehavior: 'wait',
+    })).toBe('prompt');
+  });
+
+  it('always updates when auto strategy is selected', () => {
+    expect(getPWAUpdateAction({
+      strategy: 'auto',
+      canReload: false,
+      unsafeBehavior: 'prompt',
+    })).toBe('update');
+  });
+
+  it('updates automatically when auto-when-safe is safe', () => {
+    expect(getPWAUpdateAction({
+      strategy: 'auto-when-safe',
+      canReload: true,
+      unsafeBehavior: 'prompt',
+    })).toBe('update');
+  });
+
+  it('uses the configured unsafe behaviour when auto-when-safe is not safe', () => {
+    expect(getPWAUpdateAction({
+      strategy: 'auto-when-safe',
+      canReload: false,
+      unsafeBehavior: 'prompt',
+    })).toBe('prompt');
+    expect(getPWAUpdateAction({
+      strategy: 'auto-when-safe',
+      canReload: false,
+      unsafeBehavior: 'wait',
+    })).toBe('wait');
   });
 });
 

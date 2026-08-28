@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useReducer,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -16,8 +17,11 @@ import {
 } from './install-policy';
 import {
   createInitialPWAUiState,
+  getPWAUpdateAction,
   pwaUiReducer,
   runPWAUpdate,
+  type PWAUnsafeUpdateBehavior,
+  type PWAUpdateStrategy,
 } from './runtime-state';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -32,10 +36,13 @@ interface BeforeInstallPromptEvent extends Event {
 type NavigatorWithStandalone = Navigator & { standalone?: boolean };
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
+const DEFAULT_UPDATE_MARKER_STORAGE_KEY = 'tt:pwa:update-reload';
+
 export interface PWAContextValue {
   showInstallSheet: boolean;
   showIosSheet: boolean;
   showUpdateSheet: boolean;
+  showUpdatedNotice: boolean;
   install: () => Promise<void>;
   /** Compatibility alias retained for consumers migrating from @tt-players/pwa. */
   dismiss: () => void;
@@ -43,6 +50,7 @@ export interface PWAContextValue {
   triggerInstallPrompt: () => void;
   updateApp: () => Promise<void>;
   dismissUpdate: () => void;
+  dismissUpdatedNotice: () => void;
   canInstall: boolean;
   canUpdate: boolean;
   isIOS: boolean;
@@ -55,6 +63,19 @@ export interface PWAProviderProps {
   onBeforeUpdate?: () => void | Promise<void>;
   persistStorageBeforeUpdate?: boolean;
   onRegisterError?: (error: unknown) => void;
+  /**
+   * Controls how a downloaded service-worker update is activated.
+   * `prompt` preserves the existing user-controlled update flow.
+   * `auto` always activates immediately.
+   * `auto-when-safe` activates only while `canReload` is true.
+   */
+  updateStrategy?: PWAUpdateStrategy;
+  /** App-owned safety signal used by `auto-when-safe`. */
+  canReload?: boolean;
+  /** What to do while `auto-when-safe` cannot reload. */
+  unsafeUpdateBehavior?: PWAUnsafeUpdateBehavior;
+  /** Session-storage key used to show the one-time post-reload update notice. */
+  updateMarkerStorageKey?: string;
 }
 
 const PWAContext = createContext<PWAContextValue | null>(null);
@@ -63,6 +84,15 @@ function getLocalStorage(): StorageLike | null {
   if (typeof window === 'undefined') return null;
   try {
     return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function getSessionStorage(): StorageLike | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.sessionStorage;
   } catch {
     return null;
   }
@@ -105,6 +135,33 @@ function clearPromptDismissal(storage: StorageLike | null, key: string): void {
   }
 }
 
+function recordUpdateReload(storage: StorageLike | null, key: string): void {
+  try {
+    storage?.setItem(key, '1');
+  } catch {
+    return;
+  }
+}
+
+function clearUpdateReload(storage: StorageLike | null, key: string): void {
+  try {
+    storage?.removeItem(key);
+  } catch {
+    return;
+  }
+}
+
+function consumeUpdateReload(storage: StorageLike | null, key: string): boolean {
+  if (!storage) return false;
+  try {
+    const wasUpdated = storage.getItem(key) === '1';
+    if (wasUpdated) storage.removeItem(key);
+    return wasUpdated;
+  } catch {
+    return false;
+  }
+}
+
 export async function requestPersistentStorage(): Promise<boolean> {
   if (typeof navigator === 'undefined') return false;
   if (!('storage' in navigator) || typeof navigator.storage.persist !== 'function') return false;
@@ -122,6 +179,10 @@ export function PWAProvider({
   onBeforeUpdate,
   persistStorageBeforeUpdate = true,
   onRegisterError,
+  updateStrategy = 'prompt',
+  canReload = false,
+  unsafeUpdateBehavior = 'prompt',
+  updateMarkerStorageKey = DEFAULT_UPDATE_MARKER_STORAGE_KEY,
 }: PWAProviderProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [uiState, dispatch] = useReducer(
@@ -130,6 +191,10 @@ export function PWAProvider({
     () => createInitialPWAUiState(isStandaloneMode()),
   );
   const [isIOS] = useState(detectIOS);
+  const [showUpdatedNotice, setShowUpdatedNotice] = useState(
+    () => consumeUpdateReload(getSessionStorage(), updateMarkerStorageKey),
+  );
+  const autoUpdateStartedRef = useRef(false);
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
@@ -139,10 +204,6 @@ export function PWAProvider({
       onRegisterError?.(error);
     },
   });
-
-  useEffect(() => {
-    if (needRefresh) dispatch({ type: 'update-available' });
-  }, [needRefresh]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -199,16 +260,58 @@ export function PWAProvider({
   }, [deferredPrompt, isIOS, promptStorageKey, uiState.isStandalone]);
 
   const updateApp = useCallback(async () => {
-    await runPWAUpdate({
-      onBeforeUpdate,
-      persistStorageBeforeUpdate,
-      requestPersistentStorage,
-      activateUpdate: () => updateServiceWorker(true),
+    const storage = getSessionStorage();
+    recordUpdateReload(storage, updateMarkerStorageKey);
+    try {
+      await runPWAUpdate({
+        onBeforeUpdate,
+        persistStorageBeforeUpdate,
+        requestPersistentStorage,
+        activateUpdate: () => updateServiceWorker(true),
+      });
+    } catch (error) {
+      clearUpdateReload(storage, updateMarkerStorageKey);
+      throw error;
+    }
+  }, [onBeforeUpdate, persistStorageBeforeUpdate, updateMarkerStorageKey, updateServiceWorker]);
+
+  useEffect(() => {
+    if (!needRefresh) {
+      autoUpdateStartedRef.current = false;
+      return;
+    }
+
+    const action = getPWAUpdateAction({
+      strategy: updateStrategy,
+      canReload,
+      unsafeBehavior: unsafeUpdateBehavior,
     });
-  }, [onBeforeUpdate, persistStorageBeforeUpdate, updateServiceWorker]);
+
+    if (action === 'prompt') {
+      dispatch({ type: 'update-available' });
+      return;
+    }
+
+    if (action === 'wait') {
+      dispatch({ type: 'dismiss-update' });
+      return;
+    }
+
+    if (autoUpdateStartedRef.current) return;
+    autoUpdateStartedRef.current = true;
+    dispatch({ type: 'dismiss-update' });
+    void updateApp().catch(() => {
+      autoUpdateStartedRef.current = false;
+      dispatch({ type: 'update-available' });
+    });
+  }, [canReload, needRefresh, unsafeUpdateBehavior, updateApp, updateStrategy]);
 
   const dismissUpdate = useCallback(() => {
     dispatch({ type: 'dismiss-update' });
+  }, []);
+
+  const dismissUpdatedNotice = useCallback(() => {
+    setShowUpdatedNotice(false);
   }, []);
 
   const canInstall = !uiState.isStandalone && (Boolean(deferredPrompt) || isIOS);
@@ -219,12 +322,14 @@ export function PWAProvider({
         showInstallSheet: uiState.showInstallSheet,
         showIosSheet: uiState.showIosSheet,
         showUpdateSheet: uiState.showUpdateSheet,
+        showUpdatedNotice,
         install,
         dismiss: dismissInstall,
         dismissInstall,
         triggerInstallPrompt,
         updateApp,
         dismissUpdate,
+        dismissUpdatedNotice,
         canInstall,
         canUpdate: needRefresh,
         isIOS,

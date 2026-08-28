@@ -14,6 +14,27 @@ export type PWAUiAction =
   | { type: 'update-available' }
   | { type: 'dismiss-update' };
 
+export type PWAUpdateStrategy = 'prompt' | 'auto' | 'auto-when-safe';
+export type PWAUnsafeUpdateBehavior = 'prompt' | 'wait';
+export type PWAUpdateAction = 'prompt' | 'update' | 'wait';
+
+export interface GetPWAUpdateActionOptions {
+  strategy: PWAUpdateStrategy;
+  canReload: boolean;
+  unsafeBehavior: PWAUnsafeUpdateBehavior;
+}
+
+export function getPWAUpdateAction({
+  strategy,
+  canReload,
+  unsafeBehavior,
+}: GetPWAUpdateActionOptions): PWAUpdateAction {
+  if (strategy === 'prompt') return 'prompt';
+  if (strategy === 'auto') return 'update';
+  if (canReload) return 'update';
+  return unsafeBehavior;
+}
+
 export function createInitialPWAUiState(isStandalone: boolean): PWAUiState {
   return {
     showInstallSheet: false,

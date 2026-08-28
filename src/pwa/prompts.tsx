@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { AppButton } from '../components/AppButton';
 import { BottomSheet } from '../components/BottomSheet';
 import { usePWA } from './runtime';
@@ -110,18 +110,46 @@ export function PWAUpdatePrompt({
   );
 }
 
+export interface PWAUpdateNoticeProps {
+  message?: ReactNode;
+  durationMs?: number;
+}
+
+export function PWAUpdateNotice({
+  message = 'Updated to the latest version',
+  durationMs = 4000,
+}: PWAUpdateNoticeProps) {
+  const { showUpdatedNotice, dismissUpdatedNotice } = usePWA();
+
+  useEffect(() => {
+    if (!showUpdatedNotice || durationMs <= 0) return undefined;
+    const timeout = setTimeout(dismissUpdatedNotice, durationMs);
+    return () => clearTimeout(timeout);
+  }, [dismissUpdatedNotice, durationMs, showUpdatedNotice]);
+
+  if (!showUpdatedNotice) return null;
+
+  return (
+    <div className="tt-pwa-update-notice" role="status" aria-live="polite">
+      {message}
+    </div>
+  );
+}
+
 export interface PWAPromptsProps {
   appName: string;
   appIcon?: string;
   install?: Omit<PWAInstallPromptProps, 'appName' | 'iconSrc'>;
   update?: PWAUpdatePromptProps;
+  updated?: PWAUpdateNoticeProps;
 }
 
-export function PWAPrompts({ appName, appIcon, install, update }: PWAPromptsProps) {
+export function PWAPrompts({ appName, appIcon, install, update, updated }: PWAPromptsProps) {
   return (
     <>
       <PWAInstallPrompt appName={appName} iconSrc={appIcon} {...install} />
       <PWAUpdatePrompt {...update} />
+      <PWAUpdateNotice {...updated} />
     </>
   );
 }

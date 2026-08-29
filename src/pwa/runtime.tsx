@@ -16,9 +16,12 @@ import {
   isIOSUserAgent,
 } from './install-policy';
 import {
+  clearPWAUpdateReloadMarker,
+  consumePWAUpdateReloadMarker,
   createInitialPWAUiState,
   getPWAUpdateAction,
   pwaUiReducer,
+  recordPWAUpdateReloadMarker,
   runPWAUpdate,
   type PWAUnsafeUpdateBehavior,
   type PWAUpdateStrategy,
@@ -135,33 +138,6 @@ function clearPromptDismissal(storage: StorageLike | null, key: string): void {
   }
 }
 
-function recordUpdateReload(storage: StorageLike | null, key: string): void {
-  try {
-    storage?.setItem(key, '1');
-  } catch {
-    return;
-  }
-}
-
-function clearUpdateReload(storage: StorageLike | null, key: string): void {
-  try {
-    storage?.removeItem(key);
-  } catch {
-    return;
-  }
-}
-
-function consumeUpdateReload(storage: StorageLike | null, key: string): boolean {
-  if (!storage) return false;
-  try {
-    const wasUpdated = storage.getItem(key) === '1';
-    if (wasUpdated) storage.removeItem(key);
-    return wasUpdated;
-  } catch {
-    return false;
-  }
-}
-
 export async function requestPersistentStorage(): Promise<boolean> {
   if (typeof navigator === 'undefined') return false;
   if (!('storage' in navigator) || typeof navigator.storage.persist !== 'function') return false;
@@ -191,10 +167,8 @@ export function PWAProvider({
     () => createInitialPWAUiState(isStandaloneMode()),
   );
   const [isIOS] = useState(detectIOS);
-  const [showUpdatedNotice, setShowUpdatedNotice] = useState(
-    () => consumeUpdateReload(getSessionStorage(), updateMarkerStorageKey),
-  );
-  const autoUpdateStartedRef = useRef(false);
+  const [showUpdatedNotice, setShowUpdatedNotice] = useState(false);
+  const updateInFlightRef = useRef<Promise<void> | null>(null);
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
@@ -204,6 +178,12 @@ export function PWAProvider({
       onRegisterError?.(error);
     },
   });
+
+  useEffect(() => {
+    if (consumePWAUpdateReloadMarker(getSessionStorage(), updateMarkerStorageKey)) {
+      setShowUpdatedNotice(true);
+    }
+  }, [updateMarkerStorageKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -259,27 +239,34 @@ export function PWAProvider({
     }
   }, [deferredPrompt, isIOS, promptStorageKey, uiState.isStandalone]);
 
-  const updateApp = useCallback(async () => {
+  const updateApp = useCallback((): Promise<void> => {
+    if (updateInFlightRef.current) return updateInFlightRef.current;
+
     const storage = getSessionStorage();
-    recordUpdateReload(storage, updateMarkerStorageKey);
-    try {
-      await runPWAUpdate({
-        onBeforeUpdate,
-        persistStorageBeforeUpdate,
-        requestPersistentStorage,
-        activateUpdate: () => updateServiceWorker(true),
+    recordPWAUpdateReloadMarker(storage, updateMarkerStorageKey);
+
+    const updatePromise = runPWAUpdate({
+      onBeforeUpdate,
+      persistStorageBeforeUpdate,
+      requestPersistentStorage,
+      activateUpdate: () => updateServiceWorker(true),
+    })
+      .catch((error) => {
+        clearPWAUpdateReloadMarker(storage, updateMarkerStorageKey);
+        throw error;
+      })
+      .finally(() => {
+        if (updateInFlightRef.current === updatePromise) {
+          updateInFlightRef.current = null;
+        }
       });
-    } catch (error) {
-      clearUpdateReload(storage, updateMarkerStorageKey);
-      throw error;
-    }
+
+    updateInFlightRef.current = updatePromise;
+    return updatePromise;
   }, [onBeforeUpdate, persistStorageBeforeUpdate, updateMarkerStorageKey, updateServiceWorker]);
 
   useEffect(() => {
-    if (!needRefresh) {
-      autoUpdateStartedRef.current = false;
-      return;
-    }
+    if (!needRefresh) return;
 
     const action = getPWAUpdateAction({
       strategy: updateStrategy,
@@ -297,11 +284,8 @@ export function PWAProvider({
       return;
     }
 
-    if (autoUpdateStartedRef.current) return;
-    autoUpdateStartedRef.current = true;
     dispatch({ type: 'dismiss-update' });
     void updateApp().catch(() => {
-      autoUpdateStartedRef.current = false;
       dispatch({ type: 'update-available' });
     });
   }, [canReload, needRefresh, unsafeUpdateBehavior, updateApp, updateStrategy]);

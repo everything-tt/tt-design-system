@@ -35,6 +35,48 @@ export function getPWAUpdateAction({
   return unsafeBehavior;
 }
 
+export interface PWAUpdateMarkerStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+export function recordPWAUpdateReloadMarker(
+  storage: PWAUpdateMarkerStorage | null,
+  key: string,
+): void {
+  try {
+    storage?.setItem(key, '1');
+  } catch {
+    return;
+  }
+}
+
+export function clearPWAUpdateReloadMarker(
+  storage: PWAUpdateMarkerStorage | null,
+  key: string,
+): void {
+  try {
+    storage?.removeItem(key);
+  } catch {
+    return;
+  }
+}
+
+export function consumePWAUpdateReloadMarker(
+  storage: PWAUpdateMarkerStorage | null,
+  key: string,
+): boolean {
+  if (!storage) return false;
+  try {
+    const wasUpdated = storage.getItem(key) === '1';
+    if (wasUpdated) storage.removeItem(key);
+    return wasUpdated;
+  } catch {
+    return false;
+  }
+}
+
 export function createInitialPWAUiState(isStandalone: boolean): PWAUiState {
   return {
     showInstallSheet: false,

@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  clearPWAUpdateReloadMarker,
+  consumePWAUpdateReloadMarker,
   createInitialPWAUiState,
   getPWAUpdateAction,
   pwaUiReducer,
+  recordPWAUpdateReloadMarker,
   runPWAUpdate,
+  type PWAUpdateMarkerStorage,
 } from './runtime-state';
 
 describe('PWA runtime state', () => {
@@ -51,11 +55,16 @@ describe('getPWAUpdateAction', () => {
     })).toBe('update');
   });
 
-  it('updates automatically when auto-when-safe is safe', () => {
+  it('updates automatically when auto-when-safe becomes safe', () => {
+    expect(getPWAUpdateAction({
+      strategy: 'auto-when-safe',
+      canReload: false,
+      unsafeBehavior: 'wait',
+    })).toBe('wait');
     expect(getPWAUpdateAction({
       strategy: 'auto-when-safe',
       canReload: true,
-      unsafeBehavior: 'prompt',
+      unsafeBehavior: 'wait',
     })).toBe('update');
   });
 
@@ -70,6 +79,39 @@ describe('getPWAUpdateAction', () => {
       canReload: false,
       unsafeBehavior: 'wait',
     })).toBe('wait');
+  });
+});
+
+describe('PWA update reload marker', () => {
+  function createStorage(): PWAUpdateMarkerStorage & { values: Map<string, string> } {
+    const values = new Map<string, string>();
+    return {
+      values,
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => { values.set(key, value); },
+      removeItem: (key) => { values.delete(key); },
+    };
+  }
+
+  it('records and consumes a one-time reload marker', () => {
+    const storage = createStorage();
+    recordPWAUpdateReloadMarker(storage, 'update');
+    expect(storage.getItem('update')).toBe('1');
+    expect(consumePWAUpdateReloadMarker(storage, 'update')).toBe(true);
+    expect(storage.getItem('update')).toBeNull();
+    expect(consumePWAUpdateReloadMarker(storage, 'update')).toBe(false);
+  });
+
+  it('clears a marker when activation fails', () => {
+    const storage = createStorage();
+    recordPWAUpdateReloadMarker(storage, 'update');
+    clearPWAUpdateReloadMarker(storage, 'update');
+    expect(consumePWAUpdateReloadMarker(storage, 'update')).toBe(false);
+  });
+
+  it('fails closed when storage is unavailable', () => {
+    expect(consumePWAUpdateReloadMarker(null, 'update')).toBe(false);
+    expect(() => recordPWAUpdateReloadMarker(null, 'update')).not.toThrow();
   });
 });
 

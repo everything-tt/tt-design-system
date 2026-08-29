@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  clearPWAUpdateReloadMarker,
+  consumePWAUpdateReloadMarker,
   createInitialPWAUiState,
+  getPWAUpdateAction,
   pwaUiReducer,
+  recordPWAUpdateReloadMarker,
   runPWAUpdate,
+  type PWAUpdateMarkerStorage,
 } from './runtime-state';
 
 describe('PWA runtime state', () => {
@@ -30,6 +35,83 @@ describe('PWA runtime state', () => {
     const update = pwaUiReducer(createInitialPWAUiState(false), { type: 'update-available' });
     expect(update.showUpdateSheet).toBe(true);
     expect(pwaUiReducer(update, { type: 'dismiss-update' }).showUpdateSheet).toBe(false);
+  });
+});
+
+describe('getPWAUpdateAction', () => {
+  it('always prompts when prompt strategy is selected', () => {
+    expect(getPWAUpdateAction({
+      strategy: 'prompt',
+      canReload: true,
+      unsafeBehavior: 'wait',
+    })).toBe('prompt');
+  });
+
+  it('always updates when auto strategy is selected', () => {
+    expect(getPWAUpdateAction({
+      strategy: 'auto',
+      canReload: false,
+      unsafeBehavior: 'prompt',
+    })).toBe('update');
+  });
+
+  it('updates automatically when auto-when-safe becomes safe', () => {
+    expect(getPWAUpdateAction({
+      strategy: 'auto-when-safe',
+      canReload: false,
+      unsafeBehavior: 'wait',
+    })).toBe('wait');
+    expect(getPWAUpdateAction({
+      strategy: 'auto-when-safe',
+      canReload: true,
+      unsafeBehavior: 'wait',
+    })).toBe('update');
+  });
+
+  it('uses the configured unsafe behaviour when auto-when-safe is not safe', () => {
+    expect(getPWAUpdateAction({
+      strategy: 'auto-when-safe',
+      canReload: false,
+      unsafeBehavior: 'prompt',
+    })).toBe('prompt');
+    expect(getPWAUpdateAction({
+      strategy: 'auto-when-safe',
+      canReload: false,
+      unsafeBehavior: 'wait',
+    })).toBe('wait');
+  });
+});
+
+describe('PWA update reload marker', () => {
+  function createStorage(): PWAUpdateMarkerStorage & { values: Map<string, string> } {
+    const values = new Map<string, string>();
+    return {
+      values,
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => { values.set(key, value); },
+      removeItem: (key) => { values.delete(key); },
+    };
+  }
+
+  it('records and consumes a one-time reload marker', () => {
+    const storage = createStorage();
+    recordPWAUpdateReloadMarker(storage, 'update');
+    expect(storage.getItem('update')).toBe('1');
+    expect(consumePWAUpdateReloadMarker(storage, 'update')).toBe(true);
+    expect(storage.getItem('update')).toBeNull();
+    expect(consumePWAUpdateReloadMarker(storage, 'update')).toBe(false);
+  });
+
+  it('clears a marker when activation fails', () => {
+    const storage = createStorage();
+    recordPWAUpdateReloadMarker(storage, 'update');
+    clearPWAUpdateReloadMarker(storage, 'update');
+    expect(consumePWAUpdateReloadMarker(storage, 'update')).toBe(false);
+  });
+
+  it('fails closed when storage is unavailable', () => {
+    expect(consumePWAUpdateReloadMarker(null, 'update')).toBe(false);
+    expect(() => recordPWAUpdateReloadMarker(null, 'update')).not.toThrow();
   });
 });
 

@@ -104,6 +104,39 @@ The consuming Vite app enables Tailwind v4 through `@tailwindcss/vite`. Prefligh
 
 Advanced compositions may import low-level owned primitives from `@everything-tt/tt-players-design-system/primitives`, but reusable branded UI belongs in this package rather than in each app.
 
+## PWA update policy
+
+The PWA runtime keeps service-worker timing separate from application safety. Consumers choose the update policy while the application owns the `canReload` signal; the design system does not infer safety from route names.
+
+```tsx
+import {
+  PWAProvider,
+  PWAPrompts,
+} from '@everything-tt/tt-players-design-system/pwa';
+
+<PWAProvider
+  updateStrategy="auto-when-safe"
+  canReload={canReload}
+  unsafeUpdateBehavior="prompt"
+>
+  <App />
+  <PWAPrompts
+    appName="TT Players"
+    updated={{ message: 'TT Players has been updated' }}
+  />
+</PWAProvider>
+```
+
+Supported strategies are:
+
+- `prompt` — backwards-compatible default. Show the update sheet and let the user decide when to reload.
+- `auto` — activate the downloaded update immediately and reload the current page.
+- `auto-when-safe` — update immediately when `canReload` is true. When false, `unsafeUpdateBehavior="prompt"` shows the normal update choice, while `unsafeUpdateBehavior="wait"` stays silent until the application becomes safe.
+
+The service worker still uses the prompt-style Vite registration so runtime policy controls activation. Before activation the provider stores a session marker; after the service-worker reload, `PWAUpdateNotice` consumes that marker and shows a one-time status notice. Existing consumers that do not pass the new policy props keep the previous prompt-before-update behaviour.
+
+Typical read-only routes can report `canReload={true}`. Forms, editors, builders, or other screens with meaningful unsaved/transient state should derive the signal from that state rather than from a route-name convention.
+
 ## Agent skill
 
 The published package includes a package-managed coding skill for best-practice design-system usage. When dependency lifecycle scripts are permitted, `postinstall` copies it to:

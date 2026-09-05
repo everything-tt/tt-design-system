@@ -10,6 +10,7 @@ export {
   usePWA,
   type PWAContextValue,
   type PWAProviderProps,
+  type PWAUpdateState,
 } from './runtime';
 export {
   PWAInstallPrompt,
@@ -21,6 +22,13 @@ export {
   type PWAUpdateNoticeProps,
   type PWAUpdatePromptProps,
 } from './prompts';
+export {
+  createBrowserPWARepairEnvironment,
+  runPWARepair,
+  type PWARepairEnvironment,
+  type PWARepairRegistration,
+  type RunPWARepairOptions,
+} from './repair';
 export {
   createInitialPWAUiState,
   getPWAUpdateAction,

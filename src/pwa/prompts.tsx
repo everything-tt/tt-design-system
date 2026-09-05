@@ -73,7 +73,12 @@ export interface PWAUpdatePromptProps {
   title?: string;
   eyebrow?: string;
   copy?: ReactNode;
+  failureCopy?: ReactNode;
+  repairFailureCopy?: ReactNode;
   updateLabel?: string;
+  retryLabel?: string;
+  repairLabel?: string;
+  retryRepairLabel?: string;
   dismissLabel?: string;
 }
 
@@ -81,27 +86,62 @@ export function PWAUpdatePrompt({
   title = 'Update available',
   eyebrow = 'App update',
   copy = <p>A newer version is available. Reload to use the latest version.</p>,
+  failureCopy = <p>The update could not be applied. You can keep using the current version, try again, or repair the app installation.</p>,
+  repairFailureCopy = <p>The app could not repair itself automatically. You can try the repair again or keep using the current version.</p>,
   updateLabel = 'Update Now',
+  retryLabel = 'Try again',
+  repairLabel = 'Repair app',
+  retryRepairLabel = 'Try repair again',
   dismissLabel = 'Maybe later',
 }: PWAUpdatePromptProps) {
-  const { showUpdateSheet, updateApp, dismissUpdate } = usePWA();
+  const { showUpdateSheet, updateApp, repairApp, dismissUpdate, updateState } = usePWA();
+  const isUpdating = updateState.status === 'updating';
+  const isRepairing = updateState.status === 'repairing';
+  const isBusy = isUpdating || isRepairing;
+  const failedOperation = updateState.status === 'failed' ? updateState.operation : null;
+  const body = failedOperation === 'repair'
+    ? repairFailureCopy
+    : failedOperation === 'update'
+      ? failureCopy
+      : copy;
+  const primaryLabel = isUpdating
+    ? 'Updating…'
+    : isRepairing
+      ? 'Repairing…'
+      : failedOperation === 'repair'
+        ? retryRepairLabel
+        : failedOperation === 'update'
+          ? retryLabel
+          : updateLabel;
+  const runPrimaryAction = () => {
+    if (failedOperation === 'repair') {
+      void repairApp();
+      return;
+    }
+    void updateApp();
+  };
 
   return (
     <BottomSheet
       isOpen={showUpdateSheet}
-      onClose={dismissUpdate}
-      title={title}
+      onClose={isBusy ? () => {} : dismissUpdate}
+      title={failedOperation ? 'Update needs attention' : title}
       eyebrow={eyebrow}
       height="auto"
       className="tt-pwa-sheet"
     >
       <div className="tt-pwa-sheet__content">
-        <div className="tt-pwa-sheet__copy">{copy}</div>
+        <div className="tt-pwa-sheet__copy">{body}</div>
         <div className="tt-pwa-sheet__actions">
-          <AppButton onClick={() => void updateApp()} full>
-            {updateLabel}
+          <AppButton onClick={runPrimaryAction} loading={isBusy} full>
+            {primaryLabel}
           </AppButton>
-          <AppButton onClick={dismissUpdate} tone="ghost" full>
+          {failedOperation === 'update' ? (
+            <AppButton onClick={() => void repairApp()} tone="outline" full>
+              {repairLabel}
+            </AppButton>
+          ) : null}
+          <AppButton onClick={dismissUpdate} tone="ghost" disabled={isBusy} full>
             {dismissLabel}
           </AppButton>
         </div>

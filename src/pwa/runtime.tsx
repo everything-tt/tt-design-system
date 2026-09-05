@@ -26,6 +26,7 @@ import {
   type PWAUnsafeUpdateBehavior,
   type PWAUpdateStrategy,
 } from './runtime-state';
+import { createBrowserPWARepairEnvironment, runPWARepair } from './repair';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -41,6 +42,12 @@ type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 const DEFAULT_UPDATE_MARKER_STORAGE_KEY = 'tt:pwa:update-reload';
 
+export type PWAUpdateState =
+  | { status: 'idle' }
+  | { status: 'updating' }
+  | { status: 'repairing' }
+  | { status: 'failed'; operation: 'update' | 'repair'; error: unknown };
+
 export interface PWAContextValue {
   showInstallSheet: boolean;
   showIosSheet: boolean;
@@ -51,12 +58,16 @@ export interface PWAContextValue {
   dismiss: () => void;
   dismissInstall: () => void;
   triggerInstallPrompt: () => void;
-  updateApp: () => Promise<void>;
+  /** Returns false instead of throwing when activation fails. */
+  updateApp: () => Promise<boolean>;
+  /** Clears service workers and Cache Storage, preserves app data, then reloads fresh. */
+  repairApp: () => Promise<boolean>;
   dismissUpdate: () => void;
   dismissUpdatedNotice: () => void;
   canInstall: boolean;
   canUpdate: boolean;
   isIOS: boolean;
+  updateState: PWAUpdateState;
 }
 
 export interface PWAProviderProps {
@@ -64,6 +75,8 @@ export interface PWAProviderProps {
   promptStorageKey?: string;
   promptCooldownMs?: number;
   onBeforeUpdate?: () => void | Promise<void>;
+  /** Optional app-owned backup hook before a destructive PWA repair. Defaults to onBeforeUpdate. */
+  onBeforeRepair?: () => void | Promise<void>;
   persistStorageBeforeUpdate?: boolean;
   onRegisterError?: (error: unknown) => void;
   /**
@@ -79,6 +92,8 @@ export interface PWAProviderProps {
   unsafeUpdateBehavior?: PWAUnsafeUpdateBehavior;
   /** Session-storage key used to show the one-time post-reload update notice. */
   updateMarkerStorageKey?: string;
+  /** Restrict emergency cache removal when an origin hosts caches unrelated to this PWA. */
+  repairCacheFilter?: (cacheName: string) => boolean;
 }
 
 const PWAContext = createContext<PWAContextValue | null>(null);
@@ -153,12 +168,14 @@ export function PWAProvider({
   promptStorageKey = DEFAULT_INSTALL_PROMPT_STORAGE_KEY,
   promptCooldownMs = DEFAULT_INSTALL_PROMPT_COOLDOWN_MS,
   onBeforeUpdate,
+  onBeforeRepair,
   persistStorageBeforeUpdate = true,
   onRegisterError,
   updateStrategy = 'prompt',
   canReload = false,
   unsafeUpdateBehavior = 'prompt',
   updateMarkerStorageKey = DEFAULT_UPDATE_MARKER_STORAGE_KEY,
+  repairCacheFilter,
 }: PWAProviderProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [uiState, dispatch] = useReducer(
@@ -168,7 +185,9 @@ export function PWAProvider({
   );
   const [isIOS] = useState(detectIOS);
   const [showUpdatedNotice, setShowUpdatedNotice] = useState(false);
-  const updateInFlightRef = useRef<Promise<void> | null>(null);
+  const [updateState, setUpdateState] = useState<PWAUpdateState>({ status: 'idle' });
+  const updateInFlightRef = useRef<Promise<boolean> | null>(null);
+  const repairInFlightRef = useRef<Promise<boolean> | null>(null);
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
@@ -239,11 +258,12 @@ export function PWAProvider({
     }
   }, [deferredPrompt, isIOS, promptStorageKey, uiState.isStandalone]);
 
-  const updateApp = useCallback((): Promise<void> => {
+  const updateApp = useCallback((): Promise<boolean> => {
     if (updateInFlightRef.current) return updateInFlightRef.current;
 
     const storage = getSessionStorage();
     recordPWAUpdateReloadMarker(storage, updateMarkerStorageKey);
+    setUpdateState({ status: 'updating' });
 
     const updatePromise = runPWAUpdate({
       onBeforeUpdate,
@@ -251,9 +271,15 @@ export function PWAProvider({
       requestPersistentStorage,
       activateUpdate: () => updateServiceWorker(true),
     })
-      .catch((error) => {
+      .then(() => {
+        setUpdateState({ status: 'idle' });
+        return true;
+      })
+      .catch((error: unknown) => {
         clearPWAUpdateReloadMarker(storage, updateMarkerStorageKey);
-        throw error;
+        setUpdateState({ status: 'failed', operation: 'update', error });
+        dispatch({ type: 'update-available' });
+        return false;
       })
       .finally(() => {
         if (updateInFlightRef.current === updatePromise) {
@@ -264,6 +290,41 @@ export function PWAProvider({
     updateInFlightRef.current = updatePromise;
     return updatePromise;
   }, [onBeforeUpdate, persistStorageBeforeUpdate, updateMarkerStorageKey, updateServiceWorker]);
+
+  const repairApp = useCallback((): Promise<boolean> => {
+    if (repairInFlightRef.current) return repairInFlightRef.current;
+
+    const storage = getSessionStorage();
+    recordPWAUpdateReloadMarker(storage, updateMarkerStorageKey);
+    setUpdateState({ status: 'repairing' });
+
+    const repairPromise = runPWARepair({
+      environment: createBrowserPWARepairEnvironment(),
+      cacheFilter: repairCacheFilter,
+      onBeforeRepair: async () => {
+        await (onBeforeRepair ?? onBeforeUpdate)?.();
+        if (persistStorageBeforeUpdate) await requestPersistentStorage();
+      },
+    })
+      .then(() => {
+        setUpdateState({ status: 'idle' });
+        return true;
+      })
+      .catch((error: unknown) => {
+        clearPWAUpdateReloadMarker(storage, updateMarkerStorageKey);
+        setUpdateState({ status: 'failed', operation: 'repair', error });
+        dispatch({ type: 'update-available' });
+        return false;
+      })
+      .finally(() => {
+        if (repairInFlightRef.current === repairPromise) {
+          repairInFlightRef.current = null;
+        }
+      });
+
+    repairInFlightRef.current = repairPromise;
+    return repairPromise;
+  }, [onBeforeRepair, onBeforeUpdate, persistStorageBeforeUpdate, repairCacheFilter, updateMarkerStorageKey]);
 
   useEffect(() => {
     if (!needRefresh) return;
@@ -285,13 +346,12 @@ export function PWAProvider({
     }
 
     dispatch({ type: 'dismiss-update' });
-    void updateApp().catch(() => {
-      dispatch({ type: 'update-available' });
-    });
+    void updateApp();
   }, [canReload, needRefresh, unsafeUpdateBehavior, updateApp, updateStrategy]);
 
   const dismissUpdate = useCallback(() => {
     dispatch({ type: 'dismiss-update' });
+    setUpdateState((current) => current.status === 'failed' ? { status: 'idle' } : current);
   }, []);
 
   const dismissUpdatedNotice = useCallback(() => {
@@ -312,11 +372,13 @@ export function PWAProvider({
         dismissInstall,
         triggerInstallPrompt,
         updateApp,
+        repairApp,
         dismissUpdate,
         dismissUpdatedNotice,
         canInstall,
         canUpdate: needRefresh,
         isIOS,
+        updateState,
       }}
     >
       {children}

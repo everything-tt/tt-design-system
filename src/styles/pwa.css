@@ -70,6 +70,118 @@
   line-height: 1;
 }
 
+.tt-pwa-update-notice--banner {
+  top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+  bottom: auto;
+  gap: 0.875rem;
+  width: min(42rem, calc(100vw - 1.5rem));
+  max-width: none;
+  min-height: 7rem;
+  padding: 1rem 0.875rem 1rem 1.125rem;
+  border-radius: var(--tt-radius-xl, 1.5rem);
+  box-shadow: 0 4px 12px oklch(21% 0.034 158 / 0.14), 0 18px 42px oklch(21% 0.034 158 / 0.18);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.35;
+  pointer-events: auto;
+}
+
+.tt-pwa-update-notice--banner::before {
+  content: none;
+}
+
+.tt-pwa-update-notice__icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: var(--tt-radius-pill);
+  background: var(--state-success);
+  color: var(--on-state);
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.tt-pwa-update-notice__copy {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.tt-pwa-update-notice__title {
+  color: var(--tt-text-primary);
+  font-size: 1.125rem;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.tt-pwa-update-notice__description {
+  color: var(--tt-color-text-secondary, var(--tt-text-primary));
+  font-size: 0.9375rem;
+  font-weight: 450;
+  line-height: 1.35;
+  opacity: 0.72;
+}
+
+.tt-pwa-update-notice__dismiss {
+  display: grid;
+  flex: 0 0 auto;
+  align-self: center;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tt-radius-pill);
+  background: transparent;
+  color: var(--tt-text-primary);
+  cursor: pointer;
+  opacity: 0.62;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tt-pwa-update-notice__dismiss:hover {
+  background: color-mix(in oklch, var(--tt-text-primary) 8%, transparent);
+  opacity: 0.82;
+}
+
+.tt-pwa-update-notice__dismiss:focus-visible {
+  outline: 2px solid var(--state-success);
+  outline-offset: 2px;
+  opacity: 1;
+}
+
 body.theme-dark .tt-pwa-update-notice {
   box-shadow: 0 2px 8px oklch(0% 0 0 / 0.28), 0 14px 34px oklch(0% 0 0 / 0.34);
+}
+
+body.theme-dark .tt-pwa-update-notice--banner {
+  box-shadow: 0 4px 12px oklch(0% 0 0 / 0.3), 0 20px 46px oklch(0% 0 0 / 0.4);
+}
+
+@media (max-width: 420px) {
+  .tt-pwa-update-notice--banner {
+    gap: 0.75rem;
+    width: calc(100vw - 1rem);
+    min-height: 6.75rem;
+    padding: 0.875rem 0.625rem 0.875rem 0.875rem;
+  }
+
+  .tt-pwa-update-notice__icon {
+    width: 3rem;
+    height: 3rem;
+    font-size: 1.625rem;
+  }
+
+  .tt-pwa-update-notice__title {
+    font-size: 1.0625rem;
+  }
+
+  .tt-pwa-update-notice__description {
+    font-size: 0.875rem;
+  }
 }

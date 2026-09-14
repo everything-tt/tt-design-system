@@ -122,7 +122,12 @@ import {
   <App />
   <PWAPrompts
     appName="TT Players"
-    updated={{ message: 'TT Players has been updated' }}
+    updated={{
+      variant: 'banner',
+      message: 'TT Players updated automatically',
+      description: 'New fixtures and tournament data are now available.',
+      durationMs: 5000,
+    }}
   />
 </PWAProvider>
 ```
@@ -133,7 +138,7 @@ Supported strategies are:
 - `auto` — activate the downloaded update immediately and reload the current page.
 - `auto-when-safe` — update immediately when `canReload` is true. When false, `unsafeUpdateBehavior="prompt"` shows the normal update choice, while `unsafeUpdateBehavior="wait"` stays silent until the application becomes safe.
 
-The service worker still uses the prompt-style Vite registration so runtime policy controls activation. Before activation the provider stores a session marker; after the service-worker reload, `PWAUpdateNotice` consumes that marker and shows a one-time status notice. Existing consumers that do not pass the new policy props keep the previous prompt-before-update behaviour.
+The service worker still uses the prompt-style Vite registration so runtime policy controls activation. Before activation the provider stores a session marker; after the service-worker reload, `PWAUpdateNotice` consumes that marker and shows a one-time status notice. Existing consumers keep the compact bottom toast by default. Pass `variant="banner"` for the prominent fixed top notification with optional secondary `description` text and an explicit dismiss action; the banner overlays the current screen rather than changing page layout.
 
 Typical read-only routes can report `canReload={true}`. Forms, editors, builders, or other screens with meaningful unsaved/transient state should derive the signal from that state rather than from a route-name convention.
 

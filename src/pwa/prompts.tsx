@@ -152,12 +152,18 @@ export function PWAUpdatePrompt({
 
 export interface PWAUpdateNoticeProps {
   message?: ReactNode;
+  description?: ReactNode;
   durationMs?: number;
+  variant?: 'toast' | 'banner';
+  dismissLabel?: string;
 }
 
 export function PWAUpdateNotice({
   message = 'Updated to the latest version',
+  description,
   durationMs = 4000,
+  variant = 'toast',
+  dismissLabel = 'Dismiss update notification',
 }: PWAUpdateNoticeProps) {
   const { showUpdatedNotice, dismissUpdatedNotice } = usePWA();
 
@@ -168,6 +174,35 @@ export function PWAUpdateNotice({
   }, [dismissUpdatedNotice, durationMs, showUpdatedNotice]);
 
   if (!showUpdatedNotice) return null;
+
+  if (variant === 'banner') {
+    return (
+      <div
+        className="tt-pwa-update-notice tt-pwa-update-notice--banner"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <span className="tt-pwa-update-notice__icon" aria-hidden="true">✓</span>
+        <div className="tt-pwa-update-notice__copy">
+          <div className="tt-pwa-update-notice__title">{message}</div>
+          {description ? (
+            <div className="tt-pwa-update-notice__description">{description}</div>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          className="tt-pwa-update-notice__dismiss"
+          onClick={dismissUpdatedNotice}
+          aria-label={dismissLabel}
+        >
+          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="tt-pwa-update-notice" role="status" aria-live="polite">

@@ -133,7 +133,7 @@ body.theme-dark {
   width: 100%;
   max-width: var(--tt-content-max);
   margin-inline: auto;
-  padding-top: calc(var(--tt-root-header-height) + env(safe-area-inset-top) + var(--tt-space-2));
+  padding-top: calc(var(--tt-root-header-height) + env(safe-area-inset-top) + var(--tt-space-1));
   padding-bottom: calc(var(--tt-tab-height) + env(safe-area-inset-bottom) + var(--tt-space-6)) !important;
 }
 

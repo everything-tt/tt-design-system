@@ -33,9 +33,9 @@ Do not copy an internal component implementation into an app because a public AP
 2. Read [references/component-selection.md](references/component-selection.md) and choose the narrowest public primitive that owns the required semantics.
 3. Check the package API rather than guessing props.
 4. Keep product state, routing, fetching, and domain decisions in the application.
-5. Implement page-specific layout by composing public components and app-owned wrappers.
+5. Build every application page on the shared page-layout primitives. Use `AppShellPage` for the application viewport/shell and `AppPageContent` (or a higher-level shared page primitive that composes it) for the canonical content container. Product code may compose sections inside that container, but must not recreate or override page-shell geometry.
 6. For contained mobile shells or Back/Forward restoration, read [references/mobile-pwa-restoration.md](references/mobile-pwa-restoration.md) before coding.
-7. Run the consuming project's typecheck/tests/build and inspect the affected mobile states.
+7. Run the consuming project's typecheck/tests/build and inspect the affected mobile states, including narrow viewport geometry for page-level changes.
 
 ## Design-system boundary
 
@@ -49,6 +49,25 @@ The design system owns reusable:
 - reusable page/list/control composition;
 - scroll-restoration mechanics when the app supplies navigation identity and readiness.
 
+### Page-layout ownership is exclusive
+
+The design system exclusively owns page- and viewport-level layout geometry. Consumer applications must not duplicate, replace, or override these responsibilities.
+
+The shared shell/page primitives own:
+
+- viewport height and root shell sizing;
+- canonical page width and `max-width`;
+- horizontal centring and page gutters;
+- header and bottom-navigation clearance;
+- safe-area insets;
+- the canonical page scroll container and overflow policy;
+- root page top/bottom padding required by fixed chrome;
+- shell-level responsive geometry.
+
+Use `AppShellPage` and `AppPageContent` as components, not their generated CSS class names as an application layout API. Legacy compatibility classes such as `app-shell-page`, `page-content`, `tt-app-shell`, and `tt-page-content` are implementation details of the shared component contract and must not be manually emitted by product pages to recreate the shell.
+
+Product code must not use CSS on a page/root wrapper to set page-level `width`, `min-width`, `max-width`, left/right or inline `margin`, left/right or inline `padding`, shell `min-height`/`height`, top/bottom fixed-chrome clearance, safe-area padding, or root overflow/scroll geometry. If a page needs different reusable shell geometry, add a bounded public option upstream in the design system instead of adding a product CSS override.
+
 The application owns:
 
 - feature/domain state and business rules;
@@ -56,11 +75,13 @@ The application owns:
 - route definitions and router calls;
 - search text, filters, selected tabs, query parameters, expanded state, and selections;
 - deciding when async content is ready to restore;
-- page-specific placement and feature-specific composition.
+- feature-internal composition inside the canonical page container: section order, feature-specific grids, local alignment, and local spacing that does not redefine the page shell.
 
 ### CSS rule
 
-App CSS may style app-owned page wrappers and use documented/public CSS custom properties. Do **not** reach into shared component internals with selectors such as:
+App CSS may style app-owned feature wrappers **inside** the canonical page container and use documented/public CSS custom properties. It must not own viewport/page-shell geometry and must not target the shared shell/page classes to change their geometry.
+
+Do **not** reach into shared component internals with selectors such as:
 
 ```css
 .my-page .tt-list-item__title { ... }
@@ -68,6 +89,26 @@ App CSS may style app-owned page wrappers and use documented/public CSS custom p
 ```
 
 Do not depend on the package's internal DOM hierarchy or Tailwind/shadcn implementation details. If a reusable component needs a new styling/configuration point, add a bounded prop or public CSS variable upstream.
+
+For example, this is product-owned feature composition and is acceptable:
+
+```css
+.my-player-sections {
+  display: grid;
+  gap: var(--tt-space-4);
+}
+```
+
+This is page-shell ownership and is not acceptable in a consumer:
+
+```css
+.my-player-page {
+  max-width: 720px;
+  margin-inline: auto;
+  padding-inline: 16px;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+}
+```
 
 ## Prefer semantic public components
 
@@ -128,7 +169,7 @@ Do not blindly map router implementation details to user intent. `ScrollRestorat
 
 A custom tab stack may implement a user-visible Back with `navigate(..., { replace: true })`. That is still logical `POP` for restoration purposes.
 
-Adopt the contained viewport intentionally. Existing apps may remain on document/window scrolling until migrated. Do not switch a shared shell to contained scrolling without also integrating its scroll consumers, header behaviour, and navigation restoration.
+Adopt the contained viewport intentionally. Existing apps may remain on document/window scrolling until migrated. Do not switch a shared shell to contained scrolling without also integrating its scroll consumers, header behaviour, and navigation restoration. Once a shell mode is selected, the design system still owns its viewport and scroll geometry; consumers only provide navigation/restoration state.
 
 ## Overlays
 
@@ -141,12 +182,12 @@ If browser/Android Back should close an open overlay before leaving the page, in
 Before adding new UI code in an application, ask:
 
 1. Does a public design-system component already cover the semantics?
-2. Can two or more public components be composed without styling their internals?
+2. Can two or more public components be composed without styling their internals or redefining the page shell?
 3. Is the requested behaviour product-specific or generally useful across TT apps?
 
 If it is generally useful and the current API cannot express it cleanly, implement it in `tt-design-system`, add tests/showcase coverage there, publish a new package version, then consume it from the app.
 
-Do not create parallel app-local variants such as `MyButton`, `MobileListRow`, `CustomBottomSheet`, or copied `.tt-*` CSS unless the behaviour is genuinely feature-specific.
+Do not create parallel app-local variants such as `MyButton`, `MobileListRow`, `CustomBottomSheet`, copied shell wrappers, or copied `.tt-*` shell CSS unless the behaviour is genuinely feature-specific and remains inside the canonical page container.
 
 ## Verification checklist
 
@@ -154,6 +195,9 @@ Before declaring a UI change complete:
 
 - imports come from the package's public entry points;
 - package styles are imported once at the app entry point;
+- every application page uses `AppShellPage` + `AppPageContent` or an approved shared higher-level page primitive;
+- product TSX does not manually emit canonical shell classes to recreate page layout;
+- product CSS does not own page width/max-width/centering/gutters, fixed-chrome clearance, safe-area padding, root viewport height, or root scroll/overflow geometry;
 - no app CSS targets shared component internals;
 - buttons/links/toggles use correct semantics and accessible names;
 - touch targets and focus-visible states remain intact;
@@ -162,6 +206,7 @@ Before declaring a UI change complete:
 - contained scrolling is intentional rather than accidental;
 - Back/Forward restoration uses logical navigation semantics and correct `contentReady` timing;
 - overlays close and restore focus correctly;
+- page-level changes are checked at representative narrow widths (at minimum 360px, 390px, and 412px) for horizontal overflow, symmetric canonical gutters, and bottom-navigation clearance;
 - the consuming project's typecheck, tests, and production build pass;
 - significant reusable behaviour has tests/showcase coverage in the design-system repository.
 
